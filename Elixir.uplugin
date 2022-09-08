@@ -1,0 +1,26 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Elixir",
+	"Description": "",
+	"Category": "Elixir",
+	"CreatedBy": "Fernando Pérez",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EngineVersion": "5.0.0",
+	"CanContainContent": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "Elixir",
+			"Type": "Runtime",
+			"LoadingPhase": "PreLoadingScreen",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		}
+	]
+}
