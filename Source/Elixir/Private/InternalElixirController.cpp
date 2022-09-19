@@ -14,7 +14,7 @@
 
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
-#include <OpenSSL/hmac.h>
+#include <openssl/hmac.h>
 THIRD_PARTY_INCLUDES_END
 #undef UI
 #include "Elixir.h"

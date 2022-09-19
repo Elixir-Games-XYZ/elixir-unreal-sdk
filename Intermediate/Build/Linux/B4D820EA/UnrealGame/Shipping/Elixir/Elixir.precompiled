@@ -1,0 +1,6 @@
+{
+	"OutputFiles": [
+		"Module.Elixir.cpp.o",
+		"Module.Elixir.gen.cpp.o"
+	]
+}
