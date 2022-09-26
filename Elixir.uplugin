@@ -20,7 +20,8 @@
 			"LoadingPhase": "PreLoadingScreen",
 			"PlatformAllowList": [
 				"Win64",
-				"Linux"
+				"Linux",
+				"Mac"
 			]
 		}
 	]
