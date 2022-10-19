@@ -12,11 +12,11 @@ class UElixirController : public UBlueprintAsyncActionBase
 protected:
 public:
 	UFUNCTION(BlueprintCallable, Category = "Elixir")
-	static void PrepareElixir(FString DevAPIKey, FString DevGameID, FString ProdAPIKey, FString ProdGameID) {
+	static void PrepareElixir(FString GameID, FString DevAPIKey, FString ProdAPIKey ) {
 #if !UE_BUILD_SHIPPING
-		InternalElixirController::Instance()->PrepareElixir(DevAPIKey, DevGameID);
+		InternalElixirController::Instance()->PrepareElixir(DevAPIKey, GameID);
 #else
-		InternalElixirController::Instance()->PrepareElixir(ProdAPIKey, ProdGameID);
+		InternalElixirController::Instance()->PrepareElixir(ProdAPIKey, GameID);
 #endif
 	}
 
