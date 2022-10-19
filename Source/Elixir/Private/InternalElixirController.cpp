@@ -7,6 +7,7 @@
 #include "Interfaces/IHttpResponse.h"
 #include "TimerManager.h"
 #include "Engine/Engine.h"
+#include "Runtime/Launch/Resources/Version.h"
 
 #include <string>
 #include <sstream>
@@ -81,7 +82,11 @@ void InternalElixirController::GetUserData(UObject *WorldContextObject, FUserDat
 	MakeRequest( FString::Format(TEXT("/userinfo/game/{0}"), {GameID}), "", [this, OnComplete](TSharedPtr<FJsonObject> JsonObject) {
 		TSharedPtr<FJsonObject> data =  JsonObject->GetObjectField("data");
 		FElixirUserData userData;
+#if ENGINE_MAJOR_VERSION >= 5
 		FJsonObjectConverter::JsonObjectToUStruct(data.ToSharedRef(), &userData, 0, 0, false);
+#else
+		FJsonObjectConverter::JsonObjectToUStruct(data.ToSharedRef(), &userData, 0, 0);
+#endif
 		OnComplete.ExecuteIfBound(true, userData); 
 	},
 	[OnComplete](int errorCode, FString message) {
@@ -93,7 +98,11 @@ void InternalElixirController::GetUserData(UObject *WorldContextObject, FUserDat
 void InternalElixirController::GetCollections(UObject *WorldContextObject, FCollectionsCallback OnComplete) {
 	MakeRequest( FString::Format(TEXT("/nfts/user/{0}"), {GameID}), "", [this, OnComplete](TSharedPtr<FJsonObject> JsonObject) {
 		TArray<FElixirCollection> collections;
+#if ENGINE_MAJOR_VERSION >= 5
 		FJsonObjectConverter::JsonArrayToUStruct(JsonObject->GetArrayField("data"), &collections, 0,0,false);
+#else
+		FJsonObjectConverter::JsonArrayToUStruct(JsonObject->GetArrayField("data"), &collections, 0, 0);
+#endif
 		OnComplete.ExecuteIfBound(true, collections); 
 	},
 	[OnComplete](int errorCode, FString message)
