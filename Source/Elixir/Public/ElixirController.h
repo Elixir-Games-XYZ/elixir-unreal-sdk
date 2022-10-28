@@ -43,4 +43,9 @@ public:
 	static void CloseElixir(UObject *WorldContextObject, const FCallback &OnComplete) {
 		InternalElixirController::Instance()->CloseElixir(WorldContextObject, OnComplete);
 	}
+
+	UFUNCTION(BlueprintCallable, Category = "Elixir")
+	static FString GetToken() {
+		return InternalElixirController::Instance()->GetToken();
+	}
 };

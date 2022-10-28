@@ -100,6 +100,7 @@ private:
 
 public:
 	static InternalElixirController *Instance() { if (!_Instance) _Instance = new InternalElixirController(); return _Instance; }
+	FString GetToken() const { return Token; }
 	void PrepareElixir(FString _APIKey, FString _GameID);
 	void InitElixir(UObject *WorldContextObject, FCallback OnComplete);
 	void GetUserData(UObject *WorldContextObject, FUserDataCallback OnComplete);
