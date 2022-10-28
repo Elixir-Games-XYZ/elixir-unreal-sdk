@@ -6,7 +6,7 @@
 #include "ElixirController.generated.h"
 
 UCLASS()
-class UElixirController : public UBlueprintAsyncActionBase
+class ELIXIR_API UElixirController : public UBlueprintAsyncActionBase
 {
 	GENERATED_BODY()
 protected:
