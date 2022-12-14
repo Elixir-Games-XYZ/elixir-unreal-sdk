@@ -2,20 +2,12 @@
 
 void UElixirController::PrepareElixir(FString GameID, FString DevAPIKey, FString ProdAPIKey)
 {
-#if !UE_BUILD_SHIPPING
-	InternalElixirController::Instance()->PrepareElixir(DevAPIKey, GameID);
-#else
-	InternalElixirController::Instance()->PrepareElixir(ProdAPIKey, GameID);
-#endif
+	InternalElixirController::Instance()->PrepareElixir(GameID, DevAPIKey, ProdAPIKey);
 }
 
 void UElixirController::InitElixir(UObject* WorldContextObject, const FCallback& OnComplete)
 {
-//		InternalElixirController::Instance()->Refresh(WorldContextObject, [WorldContextObject, OnComplete](bool res) {
-//			if (!res)
 	InternalElixirController::Instance()->InitElixir(WorldContextObject, OnComplete);
-//			else
-//				OnComplete.ExecuteIfBound(true); });
 }
 
 void UElixirController::GetUserData(UObject* WorldContextObject, const FUserDataCallback& OnComplete)

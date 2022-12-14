@@ -20,17 +20,18 @@ THIRD_PARTY_INCLUDES_END
 #undef UI
 #include "Elixir.h"
 
-void InternalElixirController::PrepareElixir(FString _APIKey, FString _GameID)
+void InternalElixirController::PrepareElixir(FString _GameID, FString _DevAPIKey, FString _ProdAPIKey)
 {
 	REIKey = "";
 	FParse::Value(FCommandLine::Get(), TEXT("-rei"), REIKey);
 
-	APIKey = _APIKey;
 	GameID = _GameID;
-#if !UE_BUILD_SHIPPING
+#if WITH_EDITOR
+	APIKey = _DevAPIKey;
 	BaseURL = "https://sandbox.elixir.app";
 	SecretKey = "nIhnQDqV6NYN5bYxhFOh4mpOU43fIj6f";
 #else
+	APIKey = _ProdAPIKey;
 	BaseURL = "https://kend.elixir.app";
 	SecretKey = "kiu84SHMmIKGjDnIWxH7ICySrcDLB06b";
 #endif
@@ -38,7 +39,7 @@ void InternalElixirController::PrepareElixir(FString _APIKey, FString _GameID)
 
 void InternalElixirController::InitElixir(UObject *WorldContextObject, FCallback OnComplete)
 {
-#if !UE_BUILD_SHIPPING
+#if WITH_EDITOR
 	if (REIKey.IsEmpty())
 	{
 		Token = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI5YmM4MTgzOC00NTY0LTQ4M2UtYmE2MC1iY2JiZjE2YmM1MjQiLCJlbWFpbCI6ImZlcm5hbmRvdGVzdDFAc2F0b3NoaXMuZ2FtZXMiLCJlbnZpcm9ubWVudCI6ImVsaXhpciIsImlhdCI6MTY2ODg1OTI0MiwiZXhwIjoxNzI4ODU5MjQyfQ._S9OJMUaUzkKZRJdiVjeGSzHzqFZhMWIUY3BmZla5etMecSRGFDH6BwRj3zEGygof9pVVZlkrYMiHGpKGcZUxQ";
