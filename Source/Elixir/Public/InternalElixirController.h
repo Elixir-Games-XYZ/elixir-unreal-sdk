@@ -89,9 +89,7 @@ private:
 
 	FString BaseURL;
 	FString REIKey;
-	FString SecretKey;
 	FString APIKey;
-	FString GameID;
 	FString Token;
 	FString RefreshToken;
 
@@ -100,7 +98,7 @@ private:
 
 public:
 	static InternalElixirController *Instance() { if (!_Instance) _Instance = new InternalElixirController(); return _Instance; }
-	void PrepareElixir(FString _GameID, FString _DevAPIKey, FString _ProdAPIKey);
+	void PrepareElixir(FString _APIKey);
 	void InitElixir(UObject *WorldContextObject, FCallback OnComplete);
 	void GetUserData(UObject *WorldContextObject, FUserDataCallback OnComplete);
 	void GetCollections(UObject *WorldContextObject, FCollectionsCallback OnComplete);
