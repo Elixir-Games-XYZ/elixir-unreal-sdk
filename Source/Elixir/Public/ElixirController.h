@@ -12,7 +12,7 @@ class ELIXIR_API UElixirController : public UBlueprintAsyncActionBase
 protected:
 public:
 	UFUNCTION(BlueprintCallable, Category = "Elixir")
-	static void PrepareElixir(FString GameID, FString DevAPIKey, FString ProdAPIKey );
+	static void PrepareElixir(FString APIKey);
 
 	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "OnComplete"))
 	static void InitElixir(UObject *WorldContextObject, const FCallback &OnComplete);

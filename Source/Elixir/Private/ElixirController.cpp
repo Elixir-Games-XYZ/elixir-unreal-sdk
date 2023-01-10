@@ -1,8 +1,8 @@
 #include "ElixirController.h"
 
-void UElixirController::PrepareElixir(FString GameID, FString DevAPIKey, FString ProdAPIKey)
+void UElixirController::PrepareElixir(FString APIKey)
 {
-	InternalElixirController::Instance()->PrepareElixir(GameID, DevAPIKey, ProdAPIKey);
+	InternalElixirController::Instance()->PrepareElixir(APIKey);
 }
 
 void UElixirController::InitElixir(UObject* WorldContextObject, const FCallback& OnComplete)
