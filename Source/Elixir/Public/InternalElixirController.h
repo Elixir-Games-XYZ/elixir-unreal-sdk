@@ -17,13 +17,19 @@ struct FElixirUserData
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString elixirId;
+	FString sub; // Elixir Id
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString iss;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	TArray<FString> wallets;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
 	FString nickname;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString avatar;
+	FString picture;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString wallet;
+	FString aud;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString status;
 };
 
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FUserDataCallback, bool, bSuccess, FElixirUserData, userData);
