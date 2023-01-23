@@ -25,4 +25,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "OnComplete"))
 	static void CloseElixir(UObject *WorldContextObject, const FCallback &OnComplete);
+
+	UFUNCTION(BlueprintCallable, Category = "Elixir")
+	static FString GetCurrentToken();
+
 };

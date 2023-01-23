@@ -24,3 +24,8 @@ void UElixirController::CloseElixir(UObject* WorldContextObject, const FCallback
 {
 	InternalElixirController::Instance()->CloseElixir(WorldContextObject, OnComplete);
 }
+
+FString UElixirController::GetCurrentToken()
+{
+	return InternalElixirController::Instance()->GetCurrentToken();
+}

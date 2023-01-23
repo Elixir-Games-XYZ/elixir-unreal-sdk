@@ -25,6 +25,7 @@ void InternalElixirController::PrepareElixir(FString _APIKey) {
 	FParse::Value(FCommandLine::Get(), TEXT("-rei"), REIKey);
 	APIKey = _APIKey;
 	BaseURL = "https://kend.elixir.app";
+//	BaseURL = "https://sandbox.elixir.app";
 
 }
 
@@ -197,6 +198,10 @@ void InternalElixirController::MakeRequest(FString uri, FString body, TFunction<
 #endif
 		OnSuccess(JsonObject); });
 	HttpRequest->ProcessRequest();
+}
+
+FString InternalElixirController::GetCurrentToken(){
+	return Token;
 }
 
 InternalElixirController *InternalElixirController::_Instance;

@@ -110,4 +110,5 @@ public:
 	void GetCollections(UObject *WorldContextObject, FCollectionsCallback OnComplete);
 	void CloseElixir(UObject *WorldContextObject, FCallback OnComplete);
 	void Refresh(UObject *WorldContextObject, TFunction<void(bool result)> OnComplete);
+	FString GetCurrentToken();
 };
