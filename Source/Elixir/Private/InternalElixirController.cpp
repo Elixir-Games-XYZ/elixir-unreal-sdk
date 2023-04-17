@@ -8,6 +8,8 @@
 #include "TimerManager.h"
 #include "Engine/Engine.h"
 #include "Runtime/Launch/Resources/Version.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
+#include "ElixirSettings.h"
 
 #include <string>
 #include <sstream>
@@ -33,10 +35,20 @@ void InternalElixirController::InitElixir(UObject *WorldContextObject, FCallback
 	// Refreshing Token Lamda.
 	SessionTimerCallback.BindLambda([this, WorldContextObject] { 
 		Refresh(WorldContextObject, [this](bool res) { UE_LOG(LogTemp, Warning, TEXT("RefreshToken")); }); 
-	});
+	});	
+	
 	// Ask for a reikey, devenv only.
 	if (REIKey.IsEmpty()) {
-		MakeRequest( TEXT("/sdk/auth/v2/dev/reikey"), "", [this, WorldContextObject, OnComplete](TSharedPtr<FJsonObject> JsonObject) {
+		FString uri = TEXT("/sdk/auth/v2/dev/reikey");
+		FString PlayerIdOverride = GetDefault<UElixirSettings>()->PlayerIdOverride;
+
+		if (!PlayerIdOverride.IsEmpty())
+		{
+			FString EscapedPlayerIdOverride = FGenericPlatformHttp::UrlEncode(PlayerIdOverride);
+			uri.Append(FString::Format(TEXT("?playerId={0}"), {EscapedPlayerIdOverride}));
+		}
+		
+		MakeRequest(uri, "", [this, WorldContextObject, OnComplete](TSharedPtr<FJsonObject> JsonObject) {
 			TSharedPtr<FJsonObject> data =  JsonObject->GetObjectField("data");
 			REIKey = data->GetStringField("reikey");
 			RequestSession(WorldContextObject, OnComplete); 
