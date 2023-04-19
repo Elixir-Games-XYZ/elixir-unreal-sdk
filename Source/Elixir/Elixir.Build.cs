@@ -30,7 +30,8 @@ public class Elixir : ModuleRules
 				"Json",
 				"OpenSSL",
 				"JsonUtilities",
-				"UMG"
+				"UMG",
+				"DeveloperSettings"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
