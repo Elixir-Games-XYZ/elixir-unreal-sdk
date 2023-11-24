@@ -29,3 +29,8 @@ FString UElixirController::GetCurrentToken()
 {
 	return InternalElixirController::Instance()->GetCurrentToken();
 }
+
+void UElixirController::QrVerify(UObject* WorldContextObject, FString QrValue, const FCallback& OnComplete)
+{
+	return InternalElixirController::Instance()->QrVerify(WorldContextObject, QrValue, OnComplete);
+}
