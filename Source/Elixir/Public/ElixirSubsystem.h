@@ -1,12 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Kismet/BlueprintAsyncActionBase.h"
 #include "Dom/JsonObject.h"
 #include "TimerManager.h"
 #include "Engine/EngineTypes.h"
 #include "GameFramework/SaveGame.h"
-#include "InternalElixirController.generated.h"
+#include "ElixirSubsystem.generated.h"
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FCallback, bool, bSuccess);
 
@@ -14,7 +13,6 @@ USTRUCT(BlueprintType, Category = "Elixir")
 struct FElixirUserData
 {
 	GENERATED_USTRUCT_BODY()
-	;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
@@ -37,10 +35,9 @@ DECLARE_DYNAMIC_DELEGATE_TwoParams(FUserDataCallback, bool, bSuccess, FElixirUse
 
 
 USTRUCT(BlueprintType, Category = "Elixir")
-struct FElixirNFTAttribute
+struct FElixirNftAttribute
 {
 	GENERATED_USTRUCT_BODY()
-	;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
@@ -53,7 +50,6 @@ USTRUCT(BlueprintType, Category = "Elixir")
 struct FElixirNFT
 {
 	GENERATED_USTRUCT_BODY()
-	;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
@@ -63,14 +59,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
 	FString image;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	TArray<FElixirNFTAttribute> attributes;
+	TArray<FElixirNftAttribute> attributes;
 };
 
 USTRUCT(BlueprintType, Category = "Elixir")
 struct FElixirCollection
 {
 	GENERATED_USTRUCT_BODY()
-	;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
@@ -94,44 +89,43 @@ public:
 	FString RefreshToken;
 };
 
-class InternalElixirController
+UCLASS()
+class UElixirSubsystem : public UGameInstanceSubsystem
 {
-private:
-	static InternalElixirController* _Instance;
+	GENERATED_BODY()
 
-	void RequestSession(UObject* WorldContextObject, FCallback OnComplete);
-	void MakeRequest(FString uri, TSharedPtr<FJsonObject> body, TFunction<void(TSharedPtr<FJsonObject> JsonObject)> OnSuccess,
-				 TFunction<void(int errorCode, FString message)> OnError);
+public:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	static UElixirSubsystem* GetInstance();
+
+	void PrepareElixir(FString _APIKey);
+	void InitElixir(FCallback OnComplete);
+	void GetUserData(FUserDataCallback OnComplete);
+	void GetCollections(FCollectionsCallback OnComplete);
+	void CloseElixir(FCallback OnComplete);
+	void Refresh(TFunction<void(bool result)> OnComplete);
+	void QrVerify(const FString& QrValue, FCallback OnComplete);
+	FString GetCurrentToken();
+
+private:
+	void InitializeTimer();
+	void RequestSession(FCallback OnComplete);
+	void MakeRequest(FString uri, TSharedPtr<FJsonObject> body,
+	                 TFunction<void(TSharedPtr<FJsonObject> JsonObject)> OnSuccess,
+	                 TFunction<void(int errorCode, FString message)> OnError);
 	void SaveRefreshToken();
 	void LoadRefreshToken();
 
-	FString HashSignature(FString signature);
+	static UElixirSubsystem* Instance;
 
+	FString HashSignature(FString signature);
 	FString BaseURL;
 	FString REIKey;
 	FString APIKey;
 	FString Token;
 	FString RefreshToken;
 
+	FTimerManager* TimerManager;
 	FTimerDelegate SessionTimerCallback;
 	FTimerHandle SessionTimerHandle;
-
-public:
-	static InternalElixirController* Instance()
-	{
-		if (!_Instance)
-		{
-			_Instance = new InternalElixirController();
-		}
-		return _Instance;
-	}
-
-	void PrepareElixir(FString _APIKey);
-	void InitElixir(UObject* WorldContextObject, FCallback OnComplete);
-	void GetUserData(UObject* WorldContextObject, FUserDataCallback OnComplete);
-	void GetCollections(UObject* WorldContextObject, FCollectionsCallback OnComplete);
-	void CloseElixir(UObject* WorldContextObject, FCallback OnComplete);
-	void Refresh(UObject* WorldContextObject, TFunction<void(bool result)> OnComplete);
-	void QrVerify(const UObject* WorldContextObject, const FString &QrValue, FCallback OnComplete);
-	FString GetCurrentToken();
 };

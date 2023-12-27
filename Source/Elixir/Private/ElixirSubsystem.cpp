@@ -1,8 +1,7 @@
-#include "InternalElixirController.h"
+#include "ElixirSubsystem.h"
 #include "Runtime/Online/HTTP/Public/HttpModule.h"
 #include "JsonObjectConverter.h"
 #include "Kismet/GameplayStatics.h"
-#include "Blueprint/UserWidget.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "TimerManager.h"
@@ -17,12 +16,16 @@
 
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
-#include <openssl/hmac.h>
 THIRD_PARTY_INCLUDES_END
 #undef UI
-#include "Elixir.h"
 
-void InternalElixirController::PrepareElixir(FString _APIKey)
+void UElixirSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	InitializeTimer();
+	Instance = GetWorld()->GetGameInstance()->GetSubsystem<UElixirSubsystem>();
+}
+
+void UElixirSubsystem::PrepareElixir(FString _APIKey)
 {
 	REIKey = "";
 	FParse::Value(FCommandLine::Get(), TEXT("-rei"), REIKey);
@@ -31,61 +34,64 @@ void InternalElixirController::PrepareElixir(FString _APIKey)
 	//	BaseURL = "https://sandbox.elixir.app";
 }
 
-void InternalElixirController::InitElixir(UObject* WorldContextObject, FCallback OnComplete)
+void UElixirSubsystem::InitElixir(FCallback OnComplete)
 {
-	// Refreshing Token Lamda.
-	SessionTimerCallback.BindLambda([this, WorldContextObject]
+	// Set up session refresh callback
+	SessionTimerCallback.BindLambda([this]
 	{
-		Refresh(WorldContextObject, [this](bool res) { UE_LOG(LogTemp, Warning, TEXT("RefreshToken")); });
+		Refresh([this](bool res) { UE_LOG(LogTemp, Warning, TEXT("RefreshToken")); });
 	});
 
-	// Ask for a reikey, devenv only.
+	// Request a reikey in development environment only
 	if (REIKey.IsEmpty())
 	{
 		FString uri = TEXT("/sdk/auth/v2/dev/reikey");
-		FString PlayerIdOverride = GetDefault<UElixirSettings>()->PlayerIdOverride;
+		const FString playerIdOverride = GetDefault<UElixirSettings>()->PlayerIdOverride;
 
-		if (!PlayerIdOverride.IsEmpty())
+		if (!playerIdOverride.IsEmpty())
 		{
-			FString EscapedPlayerIdOverride = FGenericPlatformHttp::UrlEncode(PlayerIdOverride);
-			uri.Append(FString::Format(TEXT("?playerId={0}"), {EscapedPlayerIdOverride}));
+			const FString escapedPlayerIdOverride = FGenericPlatformHttp::UrlEncode(playerIdOverride);
+			uri.Append(FString::Format(TEXT("?playerId={0}"), {*escapedPlayerIdOverride}));
 		}
 
-		MakeRequest(uri, nullptr, [this, WorldContextObject, OnComplete](TSharedPtr<FJsonObject> JsonObject)
+		MakeRequest(uri, nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 		            {
-			            TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
+			            const TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
 			            REIKey = data->GetStringField("reikey");
-			            RequestSession(WorldContextObject, OnComplete);
+			            RequestSession(OnComplete);
 		            }, [OnComplete](int errorCode, FString message)
 		            {
 			            GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red,
-			                                             FString::Format(TEXT("Error({0}) {1}"), {errorCode, message}));
+			                                             FString::Format(
+				                                             TEXT("Error({0}) {1}"), {errorCode, *message}));
 			            OnComplete.ExecuteIfBound(false);
 		            });
 		return;
 	}
 
-	if (REIKey.IsEmpty())
-	{
-		OnComplete.ExecuteIfBound(false);
-		return;
-	}
-	RequestSession(WorldContextObject, OnComplete);
+	RequestSession(OnComplete);
 }
 
-void InternalElixirController::RequestSession(UObject* WorldContextObject, FCallback OnComplete)
+void UElixirSubsystem::InitializeTimer()
+{
+	if (const UGameInstance* GameInstance = GetGameInstance())
+	{
+		TimerManager = &GameInstance->GetTimerManager();
+	}
+}
+
+void UElixirSubsystem::RequestSession(FCallback OnComplete)
 {
 	MakeRequest(
 		FString::Format(TEXT("/sdk/auth/v2/session/reikey/{0}"), {REIKey}), nullptr,
-		[this, WorldContextObject, OnComplete](TSharedPtr<FJsonObject> JsonObject)
+		[this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 		{
-			TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
+			const TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
 			RefreshToken = data->GetStringField("refreshToken");
 			this->SaveRefreshToken();
 			Token = data->GetStringField("token");
-			float ms = (data->GetIntegerField("tokenLifeMS") / 1000.0f) - 3.f;
-			GEngine->GetWorldFromContextObjectChecked(WorldContextObject)->GetTimerManager().SetTimer(
-				SessionTimerHandle, SessionTimerCallback, ms, false);
+			const float ms = data->GetIntegerField("tokenLifeMS") / 1000.0f - 3.f;
+			TimerManager->SetTimer(SessionTimerHandle, SessionTimerCallback, ms, false);
 			OnComplete.ExecuteIfBound(true);
 		},
 		[OnComplete](int errorCode, FString message)
@@ -94,7 +100,7 @@ void InternalElixirController::RequestSession(UObject* WorldContextObject, FCall
 		});
 }
 
-void InternalElixirController::GetUserData(UObject* WorldContextObject, FUserDataCallback OnComplete)
+void UElixirSubsystem::GetUserData(FUserDataCallback OnComplete)
 {
 	MakeRequest(TEXT("/sdk/v2/userinfo/"), nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 	            {
@@ -109,12 +115,12 @@ void InternalElixirController::GetUserData(UObject* WorldContextObject, FUserDat
 	            },
 	            [OnComplete](int errorCode, FString message)
 	            {
-		            FElixirUserData userData;
+		            const FElixirUserData userData;
 		            OnComplete.ExecuteIfBound(false, userData);
 	            });
 }
 
-void InternalElixirController::GetCollections(UObject* WorldContextObject, FCollectionsCallback OnComplete)
+void UElixirSubsystem::GetCollections(FCollectionsCallback OnComplete)
 {
 	MakeRequest(TEXT("/sdk/v2/nfts/user"), nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 	            {
@@ -129,15 +135,15 @@ void InternalElixirController::GetCollections(UObject* WorldContextObject, FColl
 	            },
 	            [OnComplete](int errorCode, FString message)
 	            {
-		            TArray<FElixirCollection> collections;
+		            const TArray<FElixirCollection> collections;
 		            OnComplete.ExecuteIfBound(false, collections);
 	            });
 }
 
 
-void InternalElixirController::CloseElixir(UObject* WorldContextObject, FCallback OnComplete)
+void UElixirSubsystem::CloseElixir(FCallback OnComplete)
 {
-	GEngine->GetWorldFromContextObjectChecked(WorldContextObject)->GetTimerManager().ClearTimer(SessionTimerHandle);
+	TimerManager->ClearTimer(SessionTimerHandle);
 	MakeRequest(FString::Format(TEXT("/sdk/auth/v2/session/closerei/{0}"), {REIKey}), nullptr,
 	            [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 	            {
@@ -149,28 +155,26 @@ void InternalElixirController::CloseElixir(UObject* WorldContextObject, FCallbac
 	            });
 }
 
-void InternalElixirController::Refresh(UObject* WorldContextObject, TFunction<void(bool result)> OnComplete)
+void UElixirSubsystem::Refresh(TFunction<void(bool result)> OnComplete)
 {
 	LoadRefreshToken();
 
-	TSharedPtr<FJsonObject> body = MakeShareable(new FJsonObject());
+	const TSharedPtr<FJsonObject> body = MakeShareable(new FJsonObject());
 	body->SetStringField("refreshToken", RefreshToken);
 	body->SetStringField("REIKey", REIKey);
 
 	MakeRequest(
 		TEXT("/sdk/auth/v2/session/refresh"),
 		body,
-		[this,
-			WorldContextObject, OnComplete](TSharedPtr<FJsonObject> JsonObject)
+		[this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Refreshed Token"));
-			TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
+			const TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
 			RefreshToken = data->GetStringField("refreshToken");
 			SaveRefreshToken();
 			Token = data->GetStringField("token");
-			float ms = (data->GetIntegerField("tokenLifeMS") / 1000.0f) - 3.f;
-			GEngine->GetWorldFromContextObjectChecked(WorldContextObject)->GetTimerManager().SetTimer(
-				SessionTimerHandle, SessionTimerCallback, ms, false);
+			const float ms = data->GetIntegerField("tokenLifeMS") / 1000.0f - 3.f;
+			TimerManager->SetTimer(SessionTimerHandle, SessionTimerCallback, ms, false);
 			OnComplete(true);
 		},
 		[OnComplete](int errorCode, FString message)
@@ -182,23 +186,22 @@ void InternalElixirController::Refresh(UObject* WorldContextObject, TFunction<vo
 		});
 }
 
-void InternalElixirController::QrVerify(const UObject* WorldContextObject, const FString &QrValue, FCallback OnComplete)
+void UElixirSubsystem::QrVerify(const FString& QrValue, FCallback OnComplete)
 {
 	const TSharedPtr<FJsonObject> body = MakeShareable(new FJsonObject());
 	body->SetStringField("qrValue", QrValue);
-	
-	GEngine->GetWorldFromContextObjectChecked(WorldContextObject)->GetTimerManager().ClearTimer(SessionTimerHandle);
+
+	TimerManager->ClearTimer(SessionTimerHandle);
 	MakeRequest(TEXT("/sdk/auth/v2/signin/qr-verify"),
 	            body,
-	            [this, WorldContextObject, OnComplete](TSharedPtr<FJsonObject> JsonObject)
+	            [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 	            {
-	            	const TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
-					RefreshToken = data->GetStringField("refreshToken");
-					this->SaveRefreshToken();
-					Token = data->GetStringField("token");
-					float ms = (data->GetIntegerField("tokenLifeMS") / 1000.0f) - 3.f;
-					GEngine->GetWorldFromContextObjectChecked(WorldContextObject)->GetTimerManager().SetTimer(
-						SessionTimerHandle, SessionTimerCallback, ms, false);
+		            const TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
+		            RefreshToken = data->GetStringField("refreshToken");
+		            this->SaveRefreshToken();
+		            Token = data->GetStringField("token");
+		            const float ms = data->GetIntegerField("tokenLifeMS") / 1000.0f - 3.f;
+		            TimerManager->SetTimer(SessionTimerHandle, SessionTimerCallback, ms, false);
 		            OnComplete.ExecuteIfBound(true);
 	            },
 	            [OnComplete](int errorCode, FString message)
@@ -208,7 +211,7 @@ void InternalElixirController::QrVerify(const UObject* WorldContextObject, const
 }
 
 
-void InternalElixirController::SaveRefreshToken()
+void UElixirSubsystem::SaveRefreshToken()
 {
 	if (UElixirSaveData* SaveDataInstance = Cast<UElixirSaveData>(
 		UGameplayStatics::CreateSaveGameObject(UElixirSaveData::StaticClass())))
@@ -219,7 +222,7 @@ void InternalElixirController::SaveRefreshToken()
 	}
 }
 
-void InternalElixirController::LoadRefreshToken()
+void UElixirSubsystem::LoadRefreshToken()
 {
 	if (UElixirSaveData* LoadedDataInstance = Cast<UElixirSaveData>(
 		UGameplayStatics::LoadGameFromSlot(TEXT("Elixir.SaveData"), 0)))
@@ -228,11 +231,11 @@ void InternalElixirController::LoadRefreshToken()
 	}
 }
 
-void InternalElixirController::MakeRequest(FString uri, TSharedPtr<FJsonObject> body,
-                                           TFunction<void(TSharedPtr<FJsonObject> JsonObject)> OnSuccess,
-                                           TFunction<void(int errorCode, FString message)> OnError)
+void UElixirSubsystem::MakeRequest(FString uri, TSharedPtr<FJsonObject> body,
+                                   TFunction<void(TSharedPtr<FJsonObject> JsonObject)> OnSuccess,
+                                   TFunction<void(int errorCode, FString message)> OnError)
 {
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 	FString url = BaseURL + uri;
 	FString verb;
 	if (!body)
@@ -243,7 +246,7 @@ void InternalElixirController::MakeRequest(FString uri, TSharedPtr<FJsonObject> 
 	{
 		verb = "POST";
 		FString bodyString;
-		TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&bodyString);
+		const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&bodyString);
 		FJsonSerializer::Serialize(body.ToSharedRef(), Writer);
 		HttpRequest->SetContentAsString(bodyString);
 	}
@@ -259,12 +262,13 @@ void InternalElixirController::MakeRequest(FString uri, TSharedPtr<FJsonObject> 
 	UE_LOG(LogTemp, Display, TEXT("[ELIXIR] %s Request: URL(%s)"), *verb, *url);
 #endif
 	HttpRequest->OnProcessRequestComplete().BindLambda(
-		[this, OnSuccess, OnError, url](const FHttpRequestPtr &Request, const FHttpResponsePtr &Response, const bool bSuccess)
+		[this, OnSuccess, OnError, url](const FHttpRequestPtr& Request, const FHttpResponsePtr& Response,
+		                                const bool bSuccess)
 		{
 			TSharedPtr<FJsonObject> JsonObject;
 			if (bSuccess)
 			{
-				TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
+				const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
 				if (FJsonSerializer::Deserialize(Reader, JsonObject))
 				{
 					if (JsonObject->HasField("error"))
@@ -272,10 +276,9 @@ void InternalElixirController::MakeRequest(FString uri, TSharedPtr<FJsonObject> 
 						// Hay que controlar los errores por limite de satoshis.
 						UE_LOG(LogTemp, Display, TEXT("[ELIXIR] Error on request (%s): %s"), *url,
 						       *Response->GetContentAsString());
-						TSharedPtr<FJsonObject> errorObject;
-						errorObject = JsonObject->GetObjectField("error");
-						int errorCode = FCString::Atoi(*errorObject->GetStringField("code"));
-						FString errorMessage = errorObject->GetStringField("message");
+						const TSharedPtr<FJsonObject> errorObject = JsonObject->GetObjectField("error");
+						const int errorCode = FCString::Atoi(*errorObject->GetStringField("code"));
+						const FString errorMessage = errorObject->GetStringField("message");
 						OnError(errorCode, errorMessage);
 						return;
 					}
@@ -302,9 +305,19 @@ void InternalElixirController::MakeRequest(FString uri, TSharedPtr<FJsonObject> 
 	HttpRequest->ProcessRequest();
 }
 
-FString InternalElixirController::GetCurrentToken()
+FString UElixirSubsystem::GetCurrentToken()
 {
 	return Token;
 }
 
-InternalElixirController* InternalElixirController::_Instance;
+UElixirSubsystem* UElixirSubsystem::Instance = nullptr;
+
+UElixirSubsystem* UElixirSubsystem::GetInstance()
+{
+	if (!Instance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UElixirSubsystem is not initialized"));
+	}
+
+	return Instance;
+}
