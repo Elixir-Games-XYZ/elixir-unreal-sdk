@@ -9,12 +9,11 @@
 #include "Runtime/Launch/Resources/Version.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
 #include "ElixirSettings.h"
+#include "Utils.h"
 
 #include <string>
 #include <sstream>
 #include <iomanip>
-
-#include "Utils.h"
 
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
