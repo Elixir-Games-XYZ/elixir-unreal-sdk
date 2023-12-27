@@ -16,19 +16,19 @@ struct FElixirUserData
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString sub; // Elixir Id
+	FString Sub; // Elixir Id
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString iss;
+	FString Iss;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	TArray<FString> wallets;
+	TArray<FString> Wallets;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString nickname;
+	FString Nickname;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString picture;
+	FString Picture;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString aud;
+	FString Aud;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString status;
+	FString Status;
 };
 
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FUserDataCallback, bool, bSuccess, FElixirUserData, userData);
@@ -41,25 +41,27 @@ struct FElixirNftAttribute
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString trait_type;
+	FString TraitType;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString value;
+	FString DisplayType;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString Value;
 };
 
 USTRUCT(BlueprintType, Category = "Elixir")
-struct FElixirNFT
+struct FElixirNft
 {
 	GENERATED_USTRUCT_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString tokenId;
+	FString TokenId;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString name;
+	FString Name;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString image;
+	FString Image;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	TArray<FElixirNftAttribute> attributes;
+	TArray<FElixirNftAttribute> Attributes;
 };
 
 USTRUCT(BlueprintType, Category = "Elixir")
@@ -69,11 +71,11 @@ struct FElixirCollection
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString collection;
+	FString Collection;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString collectionName;
+	FString CollectionName;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	TArray<FElixirNFT> nfts;
+	TArray<FElixirNft> Nfts;
 };
 
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FCollectionsCallback, bool, bSuccess, const TArray<FElixirCollection> &,

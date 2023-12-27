@@ -14,6 +14,8 @@
 #include <sstream>
 #include <iomanip>
 
+#include "Utils.h"
+
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
@@ -56,7 +58,8 @@ void UElixirSubsystem::InitElixir(FCallback OnComplete)
 
 		MakeRequest(uri, nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 		            {
-			            const TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
+			            const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField(
+				            "data");
 			            REIKey = data->GetStringField("reikey");
 			            RequestSession(OnComplete);
 		            }, [OnComplete](int errorCode, FString message)
@@ -86,7 +89,7 @@ void UElixirSubsystem::RequestSession(FCallback OnComplete)
 		FString::Format(TEXT("/sdk/auth/v2/session/reikey/{0}"), {REIKey}), nullptr,
 		[this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 		{
-			const TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
+			const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField("data");
 			RefreshToken = data->GetStringField("refreshToken");
 			this->SaveRefreshToken();
 			Token = data->GetStringField("token");
@@ -104,13 +107,10 @@ void UElixirSubsystem::GetUserData(FUserDataCallback OnComplete)
 {
 	MakeRequest(TEXT("/sdk/v2/userinfo/"), nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 	            {
-		            TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
+		            const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->
+			            GetObjectField("data");
 		            FElixirUserData userData;
-#if ENGINE_MAJOR_VERSION >= 5
 		            FJsonObjectConverter::JsonObjectToUStruct(data.ToSharedRef(), &userData, 0, 0, false);
-#else
-		FJsonObjectConverter::JsonObjectToUStruct(data.ToSharedRef(), &userData, 0, 0);
-#endif
 		            OnComplete.ExecuteIfBound(true, userData);
 	            },
 	            [OnComplete](int errorCode, FString message)
@@ -125,12 +125,9 @@ void UElixirSubsystem::GetCollections(FCollectionsCallback OnComplete)
 	MakeRequest(TEXT("/sdk/v2/nfts/user"), nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 	            {
 		            TArray<FElixirCollection> collections;
-#if ENGINE_MAJOR_VERSION >= 5
-		            FJsonObjectConverter::JsonArrayToUStruct(JsonObject->GetArrayField("data"), &collections, 0, 0,
-		                                                     false);
-#else
-		FJsonObjectConverter::JsonArrayToUStruct(JsonObject->GetArrayField("data"), &collections, 0, 0);
-#endif
+		            FJsonObjectConverter::JsonArrayToUStruct(
+			            ConvertSnakeCaseToCamelCase(JsonObject)->GetArrayField("data"), &collections, 0, 0,
+			            false);
 		            OnComplete.ExecuteIfBound(true, collections);
 	            },
 	            [OnComplete](int errorCode, FString message)
@@ -169,7 +166,7 @@ void UElixirSubsystem::Refresh(TFunction<void(bool result)> OnComplete)
 		[this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Refreshed Token"));
-			const TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
+			const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField("data");
 			RefreshToken = data->GetStringField("refreshToken");
 			SaveRefreshToken();
 			Token = data->GetStringField("token");
@@ -196,7 +193,8 @@ void UElixirSubsystem::QrVerify(const FString& QrValue, FCallback OnComplete)
 	            body,
 	            [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 	            {
-		            const TSharedPtr<FJsonObject> data = JsonObject->GetObjectField("data");
+		            const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->
+			            GetObjectField("data");
 		            RefreshToken = data->GetStringField("refreshToken");
 		            this->SaveRefreshToken();
 		            Token = data->GetStringField("token");
@@ -271,12 +269,13 @@ void UElixirSubsystem::MakeRequest(FString uri, TSharedPtr<FJsonObject> body,
 				const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
 				if (FJsonSerializer::Deserialize(Reader, JsonObject))
 				{
-					if (JsonObject->HasField("error"))
+					if (ConvertSnakeCaseToCamelCase(JsonObject)->HasField("error"))
 					{
 						// Hay que controlar los errores por limite de satoshis.
 						UE_LOG(LogTemp, Display, TEXT("[ELIXIR] Error on request (%s): %s"), *url,
 						       *Response->GetContentAsString());
-						const TSharedPtr<FJsonObject> errorObject = JsonObject->GetObjectField("error");
+						const TSharedPtr<FJsonObject> errorObject = ConvertSnakeCaseToCamelCase(JsonObject)->
+							GetObjectField("error");
 						const int errorCode = FCString::Atoi(*errorObject->GetStringField("code"));
 						const FString errorMessage = errorObject->GetStringField("message");
 						OnError(errorCode, errorMessage);
