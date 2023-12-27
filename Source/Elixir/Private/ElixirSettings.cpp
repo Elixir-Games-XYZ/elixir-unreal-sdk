@@ -7,4 +7,3 @@ UElixirSettings::UElixirSettings()
 {
 	CategoryName = TEXT("Game");
 }
-

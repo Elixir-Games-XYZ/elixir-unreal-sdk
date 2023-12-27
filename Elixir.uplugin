@@ -1,23 +1,30 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.0",
+	"VersionName": "1.1",
 	"FriendlyName": "Elixir",
 	"Description": "",
 	"Category": "Elixir",
-	"CreatedBy": "Fernando Pérez",
+	"CreatedBy": "Elixir Games",
 	"CreatedByURL": "",
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
 	"EngineVersion": [
-			"4.27",
-			"5.0",
-			"5.1"
-
+		"4.27",
+		"5.0",
+		"5.1",
+		"5.2"
 	],
 	"CanContainContent": false,
 	"Installed": true,
+	"SupportedTargetPlatforms": [
+		"Win64",
+		"Linux",
+		"Mac",
+		"iOS",
+		"Android"	
+	],
 	"Modules": [
 		{
 			"Name": "Elixir",
@@ -26,8 +33,11 @@
 			"PlatformAllowList": [
 				"Win64",
 				"Linux",
-				"Mac"
+				"Mac",
+				"iOS",
+				"Android"
 			]
-		}
-	]
+		} 
+	],
+	"PostBuildSteps": {}
 }
