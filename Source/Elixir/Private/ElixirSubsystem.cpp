@@ -11,55 +11,45 @@
 #include "ElixirSettings.h"
 #include "Utils.h"
 
-#include <string>
-#include <sstream>
-#include <iomanip>
-
-#define UI UI_ST
-THIRD_PARTY_INCLUDES_START
-THIRD_PARTY_INCLUDES_END
-#undef UI
-
 void UElixirSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	InitializeTimer();
 	Instance = GetWorld()->GetGameInstance()->GetSubsystem<UElixirSubsystem>();
 }
 
-void UElixirSubsystem::PrepareElixir(FString _APIKey)
+void UElixirSubsystem::PrepareElixir(FString InApiKey)
 {
-	REIKey = "";
-	FParse::Value(FCommandLine::Get(), TEXT("-rei"), REIKey);
-	APIKey = _APIKey;
-	BaseURL = "https://kend.elixir.app";
-	//	BaseURL = "https://sandbox.elixir.app";
+	ReiKey = "";
+	FParse::Value(FCommandLine::Get(), TEXT("-rei"), ReiKey);
+	ApiKey = InApiKey;
+	BaseURL = GetMutableDefault<UElixirSettings>()->ElixirApiBaseUrl;
 }
 
 void UElixirSubsystem::InitElixir(FCallback OnComplete)
 {
-	// Set up session refresh callback
+	// This callback will trigger every time the session refresh timer is exhausted
 	SessionTimerCallback.BindLambda([this]
 	{
 		Refresh([this](bool res) { UE_LOG(LogTemp, Warning, TEXT("RefreshToken")); });
 	});
 
-	// Request a reikey in development environment only
-	if (REIKey.IsEmpty())
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+	if (ReiKey.IsEmpty() && GetMutableDefault<UElixirSettings>()->EnableDeveloperLogin)
 	{
-		FString uri = TEXT("/sdk/auth/v2/dev/reikey");
-		const FString playerIdOverride = GetDefault<UElixirSettings>()->PlayerIdOverride;
+		FString Uri = TEXT("/sdk/auth/v2/dev/reikey");
+		const FString PlayerIdOverride = GetMutableDefault<UElixirSettings>()->PlayerIdOverride;
 
-		if (!playerIdOverride.IsEmpty())
+		if (!PlayerIdOverride.IsEmpty())
 		{
-			const FString escapedPlayerIdOverride = FGenericPlatformHttp::UrlEncode(playerIdOverride);
-			uri.Append(FString::Format(TEXT("?playerId={0}"), {*escapedPlayerIdOverride}));
+			const FString EscapedPlayerIdOverride = FGenericPlatformHttp::UrlEncode(PlayerIdOverride);
+			Uri.Append(FString::Format(TEXT("?playerId={0}"), {*EscapedPlayerIdOverride}));
 		}
 
-		MakeRequest(uri, nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
+		MakeRequest(Uri, nullptr, [this, OnComplete](const TSharedPtr<FJsonObject>& JsonObject)
 		            {
-			            const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField(
+			            const TSharedPtr<FJsonObject> Data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField(
 				            "data");
-			            REIKey = data->GetStringField("reikey");
+			            ReiKey = Data->GetStringField("reikey");
 			            RequestSession(OnComplete);
 		            }, [OnComplete](int errorCode, FString message)
 		            {
@@ -70,6 +60,7 @@ void UElixirSubsystem::InitElixir(FCallback OnComplete)
 		            });
 		return;
 	}
+#endif
 
 	RequestSession(OnComplete);
 }
@@ -85,7 +76,7 @@ void UElixirSubsystem::InitializeTimer()
 void UElixirSubsystem::RequestSession(FCallback OnComplete)
 {
 	MakeRequest(
-		FString::Format(TEXT("/sdk/auth/v2/session/reikey/{0}"), {REIKey}), nullptr,
+		FString::Format(TEXT("/sdk/auth/v2/session/reikey/{0}"), {ReiKey}), nullptr,
 		[this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 		{
 			const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField("data");
@@ -140,7 +131,7 @@ void UElixirSubsystem::GetCollections(FCollectionsCallback OnComplete)
 void UElixirSubsystem::CloseElixir(FCallback OnComplete)
 {
 	TimerManager->ClearTimer(SessionTimerHandle);
-	MakeRequest(FString::Format(TEXT("/sdk/auth/v2/session/closerei/{0}"), {REIKey}), nullptr,
+	MakeRequest(FString::Format(TEXT("/sdk/auth/v2/session/closerei/{0}"), {ReiKey}), nullptr,
 	            [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 	            {
 		            OnComplete.ExecuteIfBound(true);
@@ -157,7 +148,7 @@ void UElixirSubsystem::Refresh(TFunction<void(bool result)> OnComplete)
 
 	const TSharedPtr<FJsonObject> body = MakeShareable(new FJsonObject());
 	body->SetStringField("refreshToken", RefreshToken);
-	body->SetStringField("REIKey", REIKey);
+	body->SetStringField("ReiKey", ReiKey);
 
 	MakeRequest(
 		TEXT("/sdk/auth/v2/session/refresh"),
@@ -250,7 +241,7 @@ void UElixirSubsystem::MakeRequest(FString uri, TSharedPtr<FJsonObject> body,
 	HttpRequest->SetURL(url);
 	HttpRequest->SetVerb(verb);
 	HttpRequest->SetHeader("content-type", TEXT("application/json"));
-	HttpRequest->SetHeader("x-api-key", APIKey);
+	HttpRequest->SetHeader("x-api-key", ApiKey);
 	if (!Token.IsEmpty())
 	{
 		HttpRequest->SetHeader("authorization", FString::Format(TEXT("Bearer {0}"), {Token}));

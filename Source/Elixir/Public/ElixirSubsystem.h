@@ -100,7 +100,7 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	static UElixirSubsystem* GetInstance();
 
-	void PrepareElixir(FString _APIKey);
+	void PrepareElixir(FString InApiKey);
 	void InitElixir(FCallback OnComplete);
 	void GetUserData(FUserDataCallback OnComplete);
 	void GetCollections(FCollectionsCallback OnComplete);
@@ -122,8 +122,8 @@ private:
 
 	FString HashSignature(FString signature);
 	FString BaseURL;
-	FString REIKey;
-	FString APIKey;
+	FString ReiKey;
+	FString ApiKey;
 	FString Token;
 	FString RefreshToken;
 

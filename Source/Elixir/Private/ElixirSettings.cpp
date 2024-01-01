@@ -6,4 +6,6 @@
 UElixirSettings::UElixirSettings()
 {
 	CategoryName = TEXT("Game");
+	EnableDeveloperLogin = true;
+	ElixirApiBaseUrl = "https://kend.elixir.app";
 }
