@@ -20,4 +20,12 @@ public:
 	// Override the PlayerId to a custom value for the auth tokens generated in development from rei
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Auth")
 	FString PlayerIdOverride;
+
+	// Automatically log in as a developer player ID in development builds
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Auth")
+	bool EnableDeveloperLogin;
+
+	// Base URL for the Elixir API. Only override this when instructed by the Elixir team
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Auth")
+	FString ElixirApiBaseUrl;
 };
