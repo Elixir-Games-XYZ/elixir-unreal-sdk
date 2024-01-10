@@ -100,7 +100,11 @@ void UElixirSubsystem::GetUserData(FUserDataCallback OnComplete)
 		            const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->
 			            GetObjectField("data");
 		            FElixirUserData userData;
-		            FJsonObjectConverter::JsonObjectToUStruct(data.ToSharedRef(), &userData, 0, 0, false);
+#if ENGINE_MAJOR_VERSION >= 5
+		FJsonObjectConverter::JsonObjectToUStruct(data.ToSharedRef(), &userData, 0, 0, false);
+#else
+		            FJsonObjectConverter::JsonObjectToUStruct(data.ToSharedRef(), &userData, 0, 0);
+#endif
 		            OnComplete.ExecuteIfBound(true, userData);
 	            },
 	            [OnComplete](int errorCode, FString message)
@@ -115,9 +119,14 @@ void UElixirSubsystem::GetCollections(FCollectionsCallback OnComplete)
 	MakeRequest(TEXT("/sdk/v2/nfts/user"), nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 	            {
 		            TArray<FElixirCollection> collections;
+#if ENGINE_MAJOR_VERSION >= 5
 		            FJsonObjectConverter::JsonArrayToUStruct(
 			            ConvertSnakeCaseToCamelCase(JsonObject)->GetArrayField("data"), &collections, 0, 0,
 			            false);
+#else
+		            FJsonObjectConverter::JsonArrayToUStruct(
+			            ConvertSnakeCaseToCamelCase(JsonObject)->GetArrayField("data"), &collections, 0, 0);
+#endif
 		            OnComplete.ExecuteIfBound(true, collections);
 	            },
 	            [OnComplete](int errorCode, FString message)

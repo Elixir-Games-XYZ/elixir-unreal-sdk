@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/DeveloperSettingsBackedByCVars.h"
+#include "Engine/DeveloperSettings.h" 
 #include "ElixirSettings.generated.h"
 
 class UObject;
@@ -10,7 +10,7 @@ class UObject;
  * General settings for Elixir
  */
 UCLASS(config=Game, defaultconfig, meta=(DisplayName="Elixir Settings"))
-class UElixirSettings : public UDeveloperSettingsBackedByCVars
+class UElixirSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
