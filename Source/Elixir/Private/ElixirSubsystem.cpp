@@ -1,23 +1,76 @@
 #include "ElixirSubsystem.h"
-#include "Runtime/Online/HTTP/Public/HttpModule.h"
+#include "Elixir.h"
+#include "ElixirSettings.h"
+#include "Utils.h"
+
+#if PLATFORM_DESKTOP
+#include "OverlayMessage.h"
+using namespace elixir::overlay::message;
+#endif
+
 #include "JsonObjectConverter.h"
+#include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
-#include "TimerManager.h"
 #include "Engine/Engine.h"
 #include "Runtime/Launch/Resources/Version.h"
+#include "Runtime/Online/HTTP/Public/HttpModule.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
-#include "ElixirSettings.h"
-#include "Utils.h"
+
+UElixirSubsystem* UElixirSubsystem::Instance = nullptr;
+
+UElixirSubsystem::UElixirSubsystem()
+{
+	bOverlayMessagingInitialized = false;
+#if PLATFORM_DESKTOP
+	EventBufferGameSdk = nullptr;
+#endif
+}
+
+UElixirSubsystem* UElixirSubsystem::GetInstance()
+{
+	if (!Instance)
+	{
+		UE_LOG(LogElixir, Error, TEXT("UElixirSubsystem is not initialized"));
+	}
+
+	return Instance;
+}
 
 void UElixirSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	InitializeTimer();
+	InitOverlayMessaging();
+
+	// Register delegate for ticker callback
+	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UElixirSubsystem::Tick));	
+	
 	Instance = GetWorld()->GetGameInstance()->GetSubsystem<UElixirSubsystem>();
+	
+	UE_LOG(LogElixir, Log, TEXT("UElixirSubsystem initialized"));
 }
 
-void UElixirSubsystem::PrepareElixir(FString InApiKey)
+void UElixirSubsystem::Deinitialize()
+{
+	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+
+#if PLATFORM_DESKTOP
+	if (EventBufferGameSdk)
+	{
+		DestroyEventBuffer(EventBufferGameSdk);
+		EventBufferGameSdk = nullptr;
+	}
+
+	if (EventBufferOverlayUi)
+	{
+		DestroyEventBuffer(EventBufferOverlayUi);
+		EventBufferOverlayUi = nullptr;
+	}
+#endif
+}
+
+void UElixirSubsystem::PrepareElixir(const FString& InApiKey)
 {
 	ReiKey = "";
 	FParse::Value(FCommandLine::Get(), TEXT("-rei"), ReiKey);
@@ -25,12 +78,12 @@ void UElixirSubsystem::PrepareElixir(FString InApiKey)
 	BaseURL = GetMutableDefault<UElixirSettings>()->ElixirApiBaseUrl;
 }
 
-void UElixirSubsystem::InitElixir(FCallback OnComplete)
+void UElixirSubsystem::InitElixir(const FCallback& OnComplete)
 {
 	// This callback will trigger every time the session refresh timer is exhausted
 	SessionTimerCallback.BindLambda([this]
 	{
-		Refresh([this](bool res) { UE_LOG(LogTemp, Warning, TEXT("RefreshToken")); });
+		Refresh([this](bool Res) { UE_LOG(LogElixir, Warning, TEXT("RefreshToken")); });
 	});
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
@@ -46,18 +99,15 @@ void UElixirSubsystem::InitElixir(FCallback OnComplete)
 		}
 
 		MakeRequest(Uri, nullptr, [this, OnComplete](const TSharedPtr<FJsonObject>& JsonObject)
-		            {
-			            const TSharedPtr<FJsonObject> Data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField(
-				            "data");
-			            ReiKey = Data->GetStringField("reikey");
-			            RequestSession(OnComplete);
-		            }, [OnComplete](int errorCode, FString message)
-		            {
-			            GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red,
-			                                             FString::Format(
-				                                             TEXT("Error({0}) {1}"), {errorCode, *message}));
-			            OnComplete.ExecuteIfBound(false);
-		            });
+            {
+	            const TSharedPtr<FJsonObject> Data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField("data");
+	            ReiKey = Data->GetStringField("reikey");
+	            RequestSession(OnComplete);
+            }, [OnComplete](int ErrorCode, FString Message)
+            {
+	            GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, FString::Format(TEXT("Error({0}) {1}"), {ErrorCode, *Message}));
+	            OnComplete.ExecuteIfBound(false);
+            });
 		return;
 	}
 #endif
@@ -73,182 +123,243 @@ void UElixirSubsystem::InitializeTimer()
 	}
 }
 
-void UElixirSubsystem::RequestSession(FCallback OnComplete)
+void UElixirSubsystem::InitOverlayMessaging()
 {
-	MakeRequest(
-		FString::Format(TEXT("/sdk/auth/v2/session/reikey/{0}"), {ReiKey}), nullptr,
+#if PLATFORM_DESKTOP
+	EventBufferOverlayUi = CreateEventBuffer(GetEventBufferOverlayUi());
+	ClearEventBuffer(EventBufferOverlayUi);
+
+	const char* Error = GetEventBufferError(EventBufferOverlayUi);
+	if (Error && Error[0] != 0)
+	{
+		ClearEventBufferError(EventBufferOverlayUi);
+		UE_LOG(LogElixir, Error, TEXT("Failed to create an OverlayUi event buffer (error = '%hs')"), Error);
+		return;
+	}
+
+	EventBufferGameSdk = CreateEventBuffer(GetEventBufferGameSdk());
+	ClearEventBuffer(EventBufferGameSdk);
+
+	const char* Error2 = GetEventBufferError(EventBufferGameSdk);
+	if (Error2 && Error2[0] != 0)
+	{
+		ClearEventBufferError(EventBufferGameSdk);
+		UE_LOG(LogElixir, Error, TEXT("Failed to create a GameSdk event buffer (error = '%hs')"), Error2);
+	}
+#endif
+}
+
+bool UElixirSubsystem::Tick(float DeltaSeconds)
+{
+#if PLATFORM_DESKTOP	
+	if (EventBufferGameSdk)
+	{
+		MessageInterop Msg = ListenToEventBuffer(EventBufferGameSdk);
+		
+		if (Msg.type != MTEmpty)
+			UE_LOG(LogElixir, Verbose, TEXT("Received a message from overlay (\"type\": %d"), Msg.type);
+
+		switch (Msg.type)
+		{
+		case MTOpenStateChange:
+			{
+				FOpenStateChangeOverlayMessage OMsg;
+				OMsg.IsOpen = Msg.openStateChange.isOpen;
+				OpenStateChange.Broadcast(OMsg);
+			}
+			break;
+			
+		case MTCheckoutResult:
+			{
+				FCheckoutResultOverlayMessage OMsg;
+				OMsg.Sku = Msg.checkoutResult.sku;
+				OMsg.Success = Msg.checkoutResult.success;
+				CheckoutResult.Broadcast(OMsg);
+			}
+			break;
+		}
+	}
+#endif
+	
+	return true;
+}
+
+void UElixirSubsystem::RequestSession(const FCallback& OnComplete)
+{
+	MakeRequest(FString::Format(TEXT("/sdk/auth/v2/session/reikey/{0}"), {ReiKey}), nullptr,
 		[this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 		{
-			const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField("data");
-			RefreshToken = data->GetStringField("refreshToken");
+			const TSharedPtr<FJsonObject> Data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField("data");
+			RefreshToken = Data->GetStringField("refreshToken");
 			this->SaveRefreshToken();
-			Token = data->GetStringField("token");
-			const float ms = data->GetIntegerField("tokenLifeMS") / 1000.0f - 3.f;
-			TimerManager->SetTimer(SessionTimerHandle, SessionTimerCallback, ms, false);
+			Token = Data->GetStringField("token");
+			const float Ms = Data->GetIntegerField("tokenLifeMS") / 1000.0f - 3.f;
+			TimerManager->SetTimer(SessionTimerHandle, SessionTimerCallback, Ms, false);
 			OnComplete.ExecuteIfBound(true);
 		},
-		[OnComplete](int errorCode, FString message)
+		[OnComplete](int ErrorCode, FString Message)
 		{
 			OnComplete.ExecuteIfBound(false);
 		});
 }
 
-void UElixirSubsystem::GetUserData(FUserDataCallback OnComplete)
+void UElixirSubsystem::GetUserData(const FUserDataCallback& OnComplete)
 {
 	MakeRequest(TEXT("/sdk/v2/userinfo/"), nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
-	            {
-		            const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->
-			            GetObjectField("data");
-		            FElixirUserData userData;
+        {
+            const TSharedPtr<FJsonObject> Data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField("data");
+            FElixirUserData UserData;
 #if ENGINE_MAJOR_VERSION >= 5
-		FJsonObjectConverter::JsonObjectToUStruct(data.ToSharedRef(), &userData, 0, 0, false);
+			FJsonObjectConverter::JsonObjectToUStruct(Data.ToSharedRef(), &UserData, 0, 0, false);
 #else
-		            FJsonObjectConverter::JsonObjectToUStruct(data.ToSharedRef(), &userData, 0, 0);
+            FJsonObjectConverter::JsonObjectToUStruct(Data.ToSharedRef(), &UserData, 0, 0);
 #endif
-		            OnComplete.ExecuteIfBound(true, userData);
-	            },
-	            [OnComplete](int errorCode, FString message)
-	            {
-		            const FElixirUserData userData;
-		            OnComplete.ExecuteIfBound(false, userData);
-	            });
+            OnComplete.ExecuteIfBound(true, UserData);
+        },
+        [OnComplete](int ErrorCode, FString Message)
+        {
+            const FElixirUserData UserData;
+            OnComplete.ExecuteIfBound(false, UserData);
+        });
 }
 
-void UElixirSubsystem::GetCollections(FCollectionsCallback OnComplete)
+void UElixirSubsystem::GetCollections(const FCollectionsCallback& OnComplete)
 {
 	MakeRequest(TEXT("/sdk/v2/nfts/user"), nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
-	            {
-		            TArray<FElixirCollection> collections;
+        {
+            TArray<FElixirCollection> Collections;
 #if ENGINE_MAJOR_VERSION >= 5
-		            FJsonObjectConverter::JsonArrayToUStruct(
-			            ConvertSnakeCaseToCamelCase(JsonObject)->GetArrayField("data"), &collections, 0, 0,
-			            false);
+            FJsonObjectConverter::JsonArrayToUStruct(
+	            ConvertSnakeCaseToCamelCase(JsonObject)->GetArrayField("data"), &Collections, 0, 0, false);
 #else
-		            FJsonObjectConverter::JsonArrayToUStruct(
-			            ConvertSnakeCaseToCamelCase(JsonObject)->GetArrayField("data"), &collections, 0, 0);
+            FJsonObjectConverter::JsonArrayToUStruct(
+	            ConvertSnakeCaseToCamelCase(JsonObject)->GetArrayField("data"), &Collections, 0, 0);
 #endif
-		            OnComplete.ExecuteIfBound(true, collections);
-	            },
-	            [OnComplete](int errorCode, FString message)
-	            {
-		            const TArray<FElixirCollection> collections;
-		            OnComplete.ExecuteIfBound(false, collections);
-	            });
+            OnComplete.ExecuteIfBound(true, Collections);
+        },
+        [OnComplete](int ErrorCode, FString Message)
+        {
+            const TArray<FElixirCollection> Collections;
+            OnComplete.ExecuteIfBound(false, Collections);
+        });
 }
 
 
-void UElixirSubsystem::CloseElixir(FCallback OnComplete)
+void UElixirSubsystem::CloseElixir(const FCallback& OnComplete)
 {
 	TimerManager->ClearTimer(SessionTimerHandle);
 	MakeRequest(FString::Format(TEXT("/sdk/auth/v2/session/closerei/{0}"), {ReiKey}), nullptr,
-	            [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
-	            {
-		            OnComplete.ExecuteIfBound(true);
-	            },
-	            [OnComplete](int errorCode, FString message)
-	            {
-		            OnComplete.ExecuteIfBound(false);
-	            });
+        [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
+        {
+            OnComplete.ExecuteIfBound(true);
+        },
+        [OnComplete](int ErrorCode, FString Message)
+        {
+            OnComplete.ExecuteIfBound(false);
+        });
 }
 
-void UElixirSubsystem::Refresh(TFunction<void(bool result)> OnComplete)
+void UElixirSubsystem::Refresh(TFunction<void(bool Result)> OnComplete)
 {
 	LoadRefreshToken();
 
-	const TSharedPtr<FJsonObject> body = MakeShareable(new FJsonObject());
-	body->SetStringField("refreshToken", RefreshToken);
-	body->SetStringField("ReiKey", ReiKey);
+	const TSharedPtr<FJsonObject> Body = MakeShareable(new FJsonObject());
+	Body->SetStringField("refreshToken", RefreshToken);
+	Body->SetStringField("ReiKey", ReiKey);
 
-	MakeRequest(
-		TEXT("/sdk/auth/v2/session/refresh"),
-		body,
+	MakeRequest(TEXT("/sdk/auth/v2/session/refresh"), Body,
 		[this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Refreshed Token"));
-			const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField("data");
-			RefreshToken = data->GetStringField("refreshToken");
+			UE_LOG(LogElixir, Warning, TEXT("Refreshed Token"));
+			const TSharedPtr<FJsonObject> Data = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField("data");
+			RefreshToken = Data->GetStringField("refreshToken");
 			SaveRefreshToken();
-			Token = data->GetStringField("token");
-			const float ms = data->GetIntegerField("tokenLifeMS") / 1000.0f - 3.f;
-			TimerManager->SetTimer(SessionTimerHandle, SessionTimerCallback, ms, false);
+			Token = Data->GetStringField("token");
+			const float Ms = Data->GetIntegerField("tokenLifeMS") / 1000.0f - 3.f;
+			TimerManager->SetTimer(SessionTimerHandle, SessionTimerCallback, Ms, false);
 			OnComplete(true);
 		},
-		[OnComplete](int errorCode, FString message)
+		[OnComplete](int ErrorCode, FString Message)
 		{
 			OnComplete(false);
 			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red,
-			                                 FString::Format(
-				                                 TEXT("Error({0}) token renovation {1}"), {errorCode, message}));
+			    FString::Format(TEXT("Error({0}) token renovation {1}"), {ErrorCode, Message}));
 		});
 }
 
-void UElixirSubsystem::QrVerify(const FString& QrValue, FCallback OnComplete)
+void UElixirSubsystem::QrVerify(const FString& QrValue, const FCallback& OnComplete)
 {
-	const TSharedPtr<FJsonObject> body = MakeShareable(new FJsonObject());
-	body->SetStringField("qrValue", QrValue);
+	const TSharedPtr<FJsonObject> Body = MakeShareable(new FJsonObject());
+	Body->SetStringField("qrValue", QrValue);
 
 	TimerManager->ClearTimer(SessionTimerHandle);
-	MakeRequest(TEXT("/sdk/auth/v2/signin/qr-verify"),
-	            body,
-	            [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
-	            {
-		            const TSharedPtr<FJsonObject> data = ConvertSnakeCaseToCamelCase(JsonObject)->
-			            GetObjectField("data");
-		            RefreshToken = data->GetStringField("refreshToken");
-		            this->SaveRefreshToken();
-		            Token = data->GetStringField("token");
-		            const float ms = data->GetIntegerField("tokenLifeMS") / 1000.0f - 3.f;
-		            TimerManager->SetTimer(SessionTimerHandle, SessionTimerCallback, ms, false);
-		            OnComplete.ExecuteIfBound(true);
-	            },
-	            [OnComplete](int errorCode, FString message)
-	            {
-		            OnComplete.ExecuteIfBound(false);
-	            });
+	MakeRequest(TEXT("/sdk/auth/v2/signin/qr-verify"), Body,
+        [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
+        {
+            const TSharedPtr<FJsonObject> Data = ConvertSnakeCaseToCamelCase(JsonObject)->
+	            GetObjectField("data");
+            RefreshToken = Data->GetStringField("refreshToken");
+            this->SaveRefreshToken();
+            Token = Data->GetStringField("token");
+            const float Ms = Data->GetIntegerField("tokenLifeMS") / 1000.0f - 3.f;
+            TimerManager->SetTimer(SessionTimerHandle, SessionTimerCallback, Ms, false);
+            OnComplete.ExecuteIfBound(true);
+        },
+        [OnComplete](int ErrorCode, FString Message)
+        {
+            OnComplete.ExecuteIfBound(false);
+        });
+}
+
+const FString& UElixirSubsystem::GetCurrentToken() const
+{
+	return Token;
 }
 
 
 void UElixirSubsystem::SaveRefreshToken()
 {
-	if (UElixirSaveData* SaveDataInstance = Cast<UElixirSaveData>(
-		UGameplayStatics::CreateSaveGameObject(UElixirSaveData::StaticClass())))
+	UElixirSaveData* SaveDataInstance = Cast<UElixirSaveData>(UGameplayStatics::CreateSaveGameObject(UElixirSaveData::StaticClass()));	
+	if (SaveDataInstance)
 	{
 		SaveDataInstance->RefreshToken = RefreshToken;
 		if (!UGameplayStatics::SaveGameToSlot(SaveDataInstance, TEXT("Elixir.SaveData"), 0))
-			UE_LOG(LogTemp, Error, TEXT("[ELIXIR] Error on save data"));
+		{
+			UE_LOG(LogElixir, Error, TEXT("[ELIXIR] Error on save data"));
+		}
 	}
 }
 
 void UElixirSubsystem::LoadRefreshToken()
 {
-	if (UElixirSaveData* LoadedDataInstance = Cast<UElixirSaveData>(
-		UGameplayStatics::LoadGameFromSlot(TEXT("Elixir.SaveData"), 0)))
+	UElixirSaveData* LoadedDataInstance = Cast<UElixirSaveData>(UGameplayStatics::LoadGameFromSlot(TEXT("Elixir.SaveData"), 0));
+	if (LoadedDataInstance)
 	{
 		RefreshToken = LoadedDataInstance->RefreshToken;
 	}
 }
 
-void UElixirSubsystem::MakeRequest(FString uri, TSharedPtr<FJsonObject> body,
+void UElixirSubsystem::MakeRequest(const FString& Uri, TSharedPtr<FJsonObject> Body,
                                    TFunction<void(TSharedPtr<FJsonObject> JsonObject)> OnSuccess,
-                                   TFunction<void(int errorCode, FString message)> OnError)
+                                   TFunction<void(int ErrorCode, FString Message)> OnError)
 {
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
-	FString url = BaseURL + uri;
-	FString verb;
-	if (!body)
+	FString Url = BaseURL + Uri;
+	FString Verb;
+	if (!Body)
 	{
-		verb = "GET";
+		Verb = "GET";
 	}
 	else
 	{
-		verb = "POST";
-		FString bodyString;
-		const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&bodyString);
-		FJsonSerializer::Serialize(body.ToSharedRef(), Writer);
-		HttpRequest->SetContentAsString(bodyString);
+		Verb = "POST";
+		FString BodyString;
+		const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyString);
+		FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
+		HttpRequest->SetContentAsString(BodyString);
 	}
-	HttpRequest->SetURL(url);
-	HttpRequest->SetVerb(verb);
+	HttpRequest->SetURL(Url);
+	HttpRequest->SetVerb(Verb);
 	HttpRequest->SetHeader("content-type", TEXT("application/json"));
 	HttpRequest->SetHeader("x-api-key", ApiKey);
 	if (!Token.IsEmpty())
@@ -256,11 +367,10 @@ void UElixirSubsystem::MakeRequest(FString uri, TSharedPtr<FJsonObject> body,
 		HttpRequest->SetHeader("authorization", FString::Format(TEXT("Bearer {0}"), {Token}));
 	}
 #if !UE_BUILD_SHIPPING
-	UE_LOG(LogTemp, Display, TEXT("[ELIXIR] %s Request: URL(%s)"), *verb, *url);
+	UE_LOG(LogElixir, Display, TEXT("%s Request: URL(%s)"), *Verb, *Url);
 #endif
 	HttpRequest->OnProcessRequestComplete().BindLambda(
-		[this, OnSuccess, OnError, url](const FHttpRequestPtr& Request, const FHttpResponsePtr& Response,
-		                                const bool bSuccess)
+		[this, OnSuccess, OnError, Url](const FHttpRequestPtr& Request, const FHttpResponsePtr& Response, const bool bSuccess)
 		{
 			TSharedPtr<FJsonObject> JsonObject;
 			if (bSuccess)
@@ -271,51 +381,63 @@ void UElixirSubsystem::MakeRequest(FString uri, TSharedPtr<FJsonObject> body,
 					if (ConvertSnakeCaseToCamelCase(JsonObject)->HasField("error"))
 					{
 						// Hay que controlar los errores por limite de satoshis.
-						UE_LOG(LogTemp, Display, TEXT("[ELIXIR] Error on request (%s): %s"), *url,
-						       *Response->GetContentAsString());
-						const TSharedPtr<FJsonObject> errorObject = ConvertSnakeCaseToCamelCase(JsonObject)->
-							GetObjectField("error");
-						const int errorCode = FCString::Atoi(*errorObject->GetStringField("code"));
-						const FString errorMessage = errorObject->GetStringField("message");
-						OnError(errorCode, errorMessage);
+						UE_LOG(LogElixir, Display, TEXT("Error on request (%s): %s"), *Url, *Response->GetContentAsString());
+						const TSharedPtr<FJsonObject> errorObject = ConvertSnakeCaseToCamelCase(JsonObject)->GetObjectField("error");
+						const int ErrorCode = FCString::Atoi(*errorObject->GetStringField("code"));
+						const FString ErrorMessage = errorObject->GetStringField("message");
+						OnError(ErrorCode, ErrorMessage);
 						return;
 					}
 				}
 				else
 				{
-					UE_LOG(LogTemp, Error, TEXT("[ELIXIR] Error JSON deserialization (%s): %s"), *url,
-					       *Response->GetContentAsString());
+					UE_LOG(LogElixir, Error, TEXT("Error JSON deserialization (%s): %s"), *Url, *Response->GetContentAsString());
 					OnError(-2, TEXT("JSON deserialization error."));
 					return;
 				}
 			}
 			else
 			{
-				UE_LOG(LogTemp, Error, TEXT("[ELIXIR] HTTP generic error (%s)"), *url);
+				UE_LOG(LogElixir, Error, TEXT("HTTP generic error (%s)"), *Url);
 				OnError(-1, TEXT("HTTP generic error."));
 				return;
 			}
 #if !UE_BUILD_SHIPPING
-			UE_LOG(LogTemp, Display, TEXT("[ELIXIR] OnSuccess (%s): %s"), *url, *Response->GetContentAsString());
+			UE_LOG(LogElixir, Display, TEXT("OnSuccess (%s): %s"), *Url, *Response->GetContentAsString());
 #endif
 			OnSuccess(JsonObject);
 		});
+	
 	HttpRequest->ProcessRequest();
 }
 
-FString UElixirSubsystem::GetCurrentToken()
+bool UElixirSubsystem::Checkout(const FString& Sku)
 {
-	return Token;
-}
-
-UElixirSubsystem* UElixirSubsystem::Instance = nullptr;
-
-UElixirSubsystem* UElixirSubsystem::GetInstance()
-{
-	if (!Instance)
+#if PLATFORM_DESKTOP	
+	if (!EventBufferOverlayUi)
 	{
-		UE_LOG(LogTemp, Error, TEXT("UElixirSubsystem is not initialized"));
+		UE_LOG(LogElixir, Error, TEXT("Checkout failed: event buffer is not created"));
+		return false;		
+	}
+	
+	if (Sku.Len() == 0)
+	{
+		UE_LOG(LogElixir, Error, TEXT("Checkout failed: invalid empty Sku"));
+		return false;
 	}
 
-	return Instance;
+	const char* SkuChar = TCHAR_TO_ANSI(*Sku);
+	size_t BytesWritten = WriteToEventBufferCheckout(EventBufferOverlayUi, SkuChar);
+	if (BytesWritten == 0)
+	{
+		UE_LOG(LogElixir, Error, TEXT("Checkout failed: 0 bytes written"));
+		return false;
+	}
+	
+	UE_LOG(LogElixir, Log, TEXT("Checkout (\"Sku\": %s)"), *Sku);
+
+	return true;
+#else
+	return false;
+#endif
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ElixirTypes.h"
 #include "CoreMinimal.h"
 #include "Dom/JsonObject.h"
 #include "TimerManager.h"
@@ -7,120 +8,85 @@
 #include "GameFramework/SaveGame.h"
 #include "ElixirSubsystem.generated.h"
 
-DECLARE_DYNAMIC_DELEGATE_OneParam(FCallback, bool, bSuccess);
-
-USTRUCT(BlueprintType, Category = "Elixir")
-struct FElixirUserData
+#if PLATFORM_DESKTOP
+namespace elixir::overlay::message
 {
-	GENERATED_USTRUCT_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Sub; // Elixir Id
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Iss;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	TArray<FString> Wallets;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Nickname;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Picture;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Aud;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Status;
-};
-
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FUserDataCallback, bool, bSuccess, FElixirUserData, userData);
+	class EventBufferInterop;
+}
+#endif
 
 
-USTRUCT(BlueprintType, Category = "Elixir")
-struct FElixirNftAttribute
-{
-	GENERATED_USTRUCT_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString TraitType;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString DisplayType;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Value;
-};
-
-USTRUCT(BlueprintType, Category = "Elixir")
-struct FElixirNft
-{
-	GENERATED_USTRUCT_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString TokenId;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Name;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Image;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	TArray<FElixirNftAttribute> Attributes;
-};
-
-USTRUCT(BlueprintType, Category = "Elixir")
-struct FElixirCollection
-{
-	GENERATED_USTRUCT_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Collection;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString CollectionName;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	TArray<FElixirNft> Nfts;
-};
-
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FCollectionsCallback, bool, bSuccess, const TArray<FElixirCollection> &,
-                                   collections);
-
-UCLASS()
-class UElixirSaveData : public USaveGame
+/** TODO: Add a comment */
+UCLASS(BlueprintType)
+class ELIXIR_API UElixirSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(VisibleAnywhere, Category = Basic)
-	FString RefreshToken;
-};
-
-UCLASS()
-class UElixirSubsystem : public UGameInstanceSubsystem
-{
-	GENERATED_BODY()
+	DECLARE_DYNAMIC_DELEGATE_OneParam(FCallback, bool, bSuccess);
+	DECLARE_DYNAMIC_DELEGATE_TwoParams(FCollectionsCallback, bool, bSuccess, const TArray<FElixirCollection>&, Collections);
+	DECLARE_DYNAMIC_DELEGATE_TwoParams(FUserDataCallback, bool, bSuccess, FElixirUserData, UserData);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnOpenStateChangeMessageDelegate, const FOpenStateChangeOverlayMessage&, Message);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCheckoutResultMessageDelegate, const FCheckoutResultOverlayMessage&, Message);
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UElixirSubsystem();
 	static UElixirSubsystem* GetInstance();
+	
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
-	void PrepareElixir(FString InApiKey);
-	void InitElixir(FCallback OnComplete);
-	void GetUserData(FUserDataCallback OnComplete);
-	void GetCollections(FCollectionsCallback OnComplete);
-	void CloseElixir(FCallback OnComplete);
-	void Refresh(TFunction<void(bool result)> OnComplete);
-	void QrVerify(const FString& QrValue, FCallback OnComplete);
-	FString GetCurrentToken();
+	/** TODO: Add a comment */
+	UFUNCTION(BlueprintCallable, Category = "Elixir")
+	void PrepareElixir(const FString& InApiKey);
+
+	/** TODO: Add a comment */
+	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
+	void InitElixir(const FCallback& OnComplete);
+
+	/** TODO: Add a comment */
+	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
+	void GetUserData(const FUserDataCallback& OnComplete);
+
+	/** TODO: Add a comment */
+	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
+	void GetCollections(const FCollectionsCallback& OnComplete);
+
+	/** TODO: Add a comment */
+	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
+	void CloseElixir(const FCallback& OnComplete);
+
+	/** TODO: Add a comment */
+	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
+	void QrVerify(const FString& QrValue, const FCallback& OnComplete);
+	
+	/** TODO: Add a comment */
+	UFUNCTION(BlueprintCallable, Category = "Elixir")	
+	const FString& GetCurrentToken() const;
+
+	/** TODO: Add a comment */
+	UFUNCTION(BlueprintCallable, Category = "Elixir")
+	bool Checkout(const FString& Sku);
+
+	/** TODO: Add a comment */
+	void Refresh(TFunction<void(bool Result)> OnComplete);
 
 private:
 	void InitializeTimer();
-	void RequestSession(FCallback OnComplete);
-	void MakeRequest(FString uri, TSharedPtr<FJsonObject> body,
+	void InitOverlayMessaging();
+	bool Tick(float DeltaSeconds);
+	void RequestSession(const FCallback& OnComplete);
+	void MakeRequest(const FString& Uri, TSharedPtr<FJsonObject> Body,
 	                 TFunction<void(TSharedPtr<FJsonObject> JsonObject)> OnSuccess,
-	                 TFunction<void(int errorCode, FString message)> OnError);
+	                 TFunction<void(int ErrorCode, FString Message)> OnError);
 	void SaveRefreshToken();
 	void LoadRefreshToken();
 
+private:	
 	static UElixirSubsystem* Instance;
 
-	FString HashSignature(FString signature);
+	FDelegateHandle TickDelegateHandle;
+	
 	FString BaseURL;
 	FString ReiKey;
 	FString ApiKey;
@@ -130,4 +96,30 @@ private:
 	FTimerManager* TimerManager;
 	FTimerDelegate SessionTimerCallback;
 	FTimerHandle SessionTimerHandle;
+	
+	bool bOverlayMessagingInitialized;
+
+#if PLATFORM_DESKTOP
+	elixir::overlay::message::EventBufferInterop* EventBufferGameSdk;
+	elixir::overlay::message::EventBufferInterop* EventBufferOverlayUi;
+#endif
+
+public:
+	/** TODO: Add a comment */
+	UPROPERTY(BlueprintAssignable)
+	FOnOpenStateChangeMessageDelegate OpenStateChange;
+
+	/** TODO: Add a comment */
+	UPROPERTY(BlueprintAssignable)
+	FOnCheckoutResultMessageDelegate CheckoutResult;	
+};
+
+UCLASS()
+class ELIXIR_API UElixirSaveData : public USaveGame
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(VisibleAnywhere, Category = Basic)
+	FString RefreshToken;
 };
