@@ -7,6 +7,8 @@ class SElixirEventSimulator;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorElixir, Log, All);
 
+#define ELIXIR_API_TAB_OVERLAY_SIMULATOR "ElixirEventSimulator"
+
 class FElixirEditorModule : public IModuleInterface
 {
 public:
@@ -17,8 +19,11 @@ public:
 	virtual TSharedRef<SWidget> CreateElixirEventSimulatorWidget();
 
 private:
-	
 	void OnTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+	void AddMenuEntry(FMenuBarBuilder& MenuBuilder);
+	void FillSubmenu(FMenuBuilder& MenuBuilder);
+	void MenuCallbackOverlaySimulator();
+	void MenuCallbackDocumentation();
 
 private:
 	TSharedRef<SDockTab> MakeElixirEventSimulatorTab(const FSpawnTabArgs&);
