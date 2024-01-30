@@ -6,6 +6,7 @@
 #include "TimerManager.h"
 #include "Engine/EngineTypes.h"
 #include "GameFramework/SaveGame.h"
+#include "Misc/EngineVersionComparison.h"
 #include "ElixirSubsystem.generated.h"
 
 #if PLATFORM_DESKTOP
@@ -24,15 +25,22 @@ class ELIXIR_API UElixirSubsystem : public UGameInstanceSubsystem
 
 public:
 	DECLARE_DYNAMIC_DELEGATE_OneParam(FCallback, bool, bSuccess);
-	DECLARE_DYNAMIC_DELEGATE_TwoParams(FCollectionsCallback, bool, bSuccess, const TArray<FElixirCollection>&, Collections);
+
+	DECLARE_DYNAMIC_DELEGATE_TwoParams(FCollectionsCallback, bool, bSuccess, const TArray<FElixirCollection>&,
+	                                   Collections);
+
 	DECLARE_DYNAMIC_DELEGATE_TwoParams(FUserDataCallback, bool, bSuccess, FElixirUserData, UserData);
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnOpenStateChangeMessageDelegate, const FOpenStateChangeOverlayMessage&, Message);
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCheckoutResultMessageDelegate, const FCheckoutResultOverlayMessage&, Message);
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnOpenStateChangeMessageDelegate,
+	                                            const FOpenStateChangeOverlayMessage&, Message);
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCheckoutResultMessageDelegate, const FCheckoutResultOverlayMessage&,
+	                                            Message);
 
 public:
 	UElixirSubsystem();
 	static UElixirSubsystem* GetInstance();
-	
+
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
@@ -50,6 +58,10 @@ public:
 
 	/** TODO: Add a comment */
 	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
+	void Logout(FCallback OnComplete);
+
+	/** TODO: Add a comment */
+	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
 	void GetCollections(const FCollectionsCallback& OnComplete);
 
 	/** TODO: Add a comment */
@@ -59,9 +71,9 @@ public:
 	/** TODO: Add a comment */
 	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
 	void QrVerify(const FString& QrValue, const FCallback& OnComplete);
-	
+
 	/** TODO: Add a comment */
-	UFUNCTION(BlueprintCallable, Category = "Elixir")	
+	UFUNCTION(BlueprintCallable, Category = "Elixir")
 	const FString& GetCurrentToken() const;
 
 	/** TODO: Add a comment */
@@ -81,12 +93,17 @@ private:
 	                 TFunction<void(int ErrorCode, FString Message)> OnError);
 	void SaveRefreshToken();
 	void LoadRefreshToken();
+	void ClearRefreshToken();
 
-private:	
+private:
 	static UElixirSubsystem* Instance;
 
+#if UE_VERSION_OLDER_THAN(5, 2, 0)
 	FDelegateHandle TickDelegateHandle;
-	
+#else
+	FTSTicker::FDelegateHandle TickDelegateHandle;
+#endif
+
 	FString BaseURL;
 	FString ReiKey;
 	FString ApiKey;
@@ -96,7 +113,7 @@ private:
 	FTimerManager* TimerManager;
 	FTimerDelegate SessionTimerCallback;
 	FTimerHandle SessionTimerHandle;
-	
+
 	bool bOverlayMessagingInitialized;
 
 #if PLATFORM_DESKTOP
@@ -111,7 +128,7 @@ public:
 
 	/** TODO: Add a comment */
 	UPROPERTY(BlueprintAssignable)
-	FOnCheckoutResultMessageDelegate CheckoutResult;	
+	FOnCheckoutResultMessageDelegate CheckoutResult;
 };
 
 UCLASS()
