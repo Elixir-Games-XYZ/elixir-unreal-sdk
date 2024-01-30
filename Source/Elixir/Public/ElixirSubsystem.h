@@ -103,6 +103,7 @@ public:
 	void PrepareElixir(FString InApiKey);
 	void InitElixir(FCallback OnComplete);
 	void GetUserData(FUserDataCallback OnComplete);
+	void Logout(FCallback OnComplete);
 	void GetCollections(FCollectionsCallback OnComplete);
 	void CloseElixir(FCallback OnComplete);
 	void Refresh(TFunction<void(bool result)> OnComplete);
@@ -116,6 +117,7 @@ private:
 	                 TFunction<void(TSharedPtr<FJsonObject> JsonObject)> OnSuccess,
 	                 TFunction<void(int errorCode, FString message)> OnError);
 	void SaveRefreshToken();
+	void ClearRefreshToken();
 	void LoadRefreshToken();
 
 	static UElixirSubsystem* Instance;

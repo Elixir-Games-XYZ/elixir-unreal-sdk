@@ -25,6 +25,14 @@ void UElixirController::GetUserData(const FUserDataCallback& OnComplete)
 	}
 }
 
+void UElixirController::Logout(const FCallback& OnComplete)
+{
+	if (const auto ElixirSubsystem = UElixirSubsystem::GetInstance())
+	{
+		ElixirSubsystem->Logout(OnComplete);
+	}
+}
+
 void UElixirController::GetCollections(const FCollectionsCallback& OnComplete)
 {
 	if (const auto ElixirSubsystem = UElixirSubsystem::GetInstance())

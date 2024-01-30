@@ -24,6 +24,9 @@ public:
 	static void GetUserData(const FUserDataCallback& OnComplete);
 
 	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
+	static void Logout(const FCallback& OnComplete);
+
+	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
 	static void GetCollections(const FCollectionsCallback& OnComplete);
 
 	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))

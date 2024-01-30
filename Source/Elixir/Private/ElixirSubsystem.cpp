@@ -62,6 +62,22 @@ void UElixirSubsystem::InitElixir(FCallback OnComplete)
 	}
 #endif
 
+	if (ReiKey.IsEmpty())
+	{
+		LoadRefreshToken();
+
+		if (!RefreshToken.IsEmpty())
+		{
+			Refresh([OnComplete](bool bSuccess) { OnComplete.ExecuteIfBound(bSuccess); });
+		}
+		else
+		{
+			OnComplete.ExecuteIfBound(false);
+		}
+
+		return;
+	}
+
 	RequestSession(OnComplete);
 }
 
@@ -110,6 +126,13 @@ void UElixirSubsystem::GetUserData(FUserDataCallback OnComplete)
 	            });
 }
 
+void UElixirSubsystem::Logout(FCallback OnComplete)
+{
+	ClearRefreshToken();
+	Token = "";
+	OnComplete.ExecuteIfBound(true);
+}
+
 void UElixirSubsystem::GetCollections(FCollectionsCallback OnComplete)
 {
 	MakeRequest(TEXT("/sdk/v2/nfts/user"), nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
@@ -142,7 +165,7 @@ void UElixirSubsystem::CloseElixir(FCallback OnComplete)
 	            });
 }
 
-void UElixirSubsystem::Refresh(TFunction<void(bool result)> OnComplete)
+void UElixirSubsystem::Refresh(TFunction<void(bool bSuccess)> OnComplete)
 {
 	LoadRefreshToken();
 
@@ -164,9 +187,10 @@ void UElixirSubsystem::Refresh(TFunction<void(bool result)> OnComplete)
 			TimerManager->SetTimer(SessionTimerHandle, SessionTimerCallback, ms, false);
 			OnComplete(true);
 		},
-		[OnComplete](int errorCode, FString message)
+		[this, OnComplete](int errorCode, FString message)
 		{
 			OnComplete(false);
+			ClearRefreshToken();
 			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red,
 			                                 FString::Format(
 				                                 TEXT("Error({0}) token renovation {1}"), {errorCode, message}));
@@ -207,6 +231,17 @@ void UElixirSubsystem::SaveRefreshToken()
 		SaveDataInstance->RefreshToken = RefreshToken;
 		if (!UGameplayStatics::SaveGameToSlot(SaveDataInstance, TEXT("Elixir.SaveData"), 0))
 			UE_LOG(LogTemp, Error, TEXT("[ELIXIR] Error on save data"));
+	}
+}
+
+void UElixirSubsystem::ClearRefreshToken()
+{
+	if (UElixirSaveData* SaveDataInstance = Cast<UElixirSaveData>(
+		UGameplayStatics::CreateSaveGameObject(UElixirSaveData::StaticClass())))
+	{
+		SaveDataInstance->RefreshToken = TEXT("");
+		if (!UGameplayStatics::SaveGameToSlot(SaveDataInstance, TEXT("Elixir.SaveData"), 0))
+			UE_LOG(LogTemp, Error, TEXT("[ELIXIR] Error on clearing save data"));
 	}
 }
 
