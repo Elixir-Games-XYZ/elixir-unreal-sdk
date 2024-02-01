@@ -8,7 +8,7 @@ USTRUCT(BlueprintType, Category = "Elixir")
 struct FElixirUserData
 {
 	GENERATED_BODY()
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
 	FString Sub;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
@@ -58,13 +58,63 @@ USTRUCT(BlueprintType, Category = "Elixir")
 struct FElixirCollection
 {
 	GENERATED_BODY()
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
 	FString Collection;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
 	FString CollectionName;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
 	TArray<FElixirNft> Nfts;
+};
+
+USTRUCT(BlueprintType, Category = "Elixir")
+struct FElixirTournament
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString Id;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString Name;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString GameId;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString Description;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString CreatedAt;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString StartsAt;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString EndsAt;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString RepeatEvery;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString Location;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString EventUrl;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString UserId;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString ImageUrl;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString PrizePool;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString Type;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString Visibility;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString PrizeDescription;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString SettingsId;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
+	FString Leaderboard;
+};
+
+UENUM(BlueprintType)
+enum class EElixirTournamentFilterType : uint8
+{
+	Active,
+	All
 };
 
 USTRUCT(BlueprintType, Category = "Elixir")
@@ -84,5 +134,5 @@ struct FCheckoutResultOverlayMessage
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
 	bool Success;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Basic)
-	FString Sku;	
+	FString Sku;
 };

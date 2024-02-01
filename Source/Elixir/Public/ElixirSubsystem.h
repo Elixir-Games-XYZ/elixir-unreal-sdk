@@ -29,6 +29,9 @@ public:
 	DECLARE_DYNAMIC_DELEGATE_TwoParams(FCollectionsCallback, bool, bSuccess, const TArray<FElixirCollection>&,
 	                                   Collections);
 
+	DECLARE_DYNAMIC_DELEGATE_TwoParams(FTournamentsCallback, bool, bSuccess, const TArray<FElixirTournament>&,
+	                                   Collections);
+
 	DECLARE_DYNAMIC_DELEGATE_TwoParams(FUserDataCallback, bool, bSuccess, FElixirUserData, UserData);
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnOpenStateChangeMessageDelegate,
@@ -63,6 +66,10 @@ public:
 	/** TODO: Add a comment */
 	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
 	void GetCollections(const FCollectionsCallback& OnComplete);
+
+	/** TODO: Add a comment */
+	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
+	void GetTournaments(EElixirTournamentFilterType Filter, const FTournamentsCallback& OnComplete);
 
 	/** TODO: Add a comment */
 	UFUNCTION(BlueprintCallable, Category = "Elixir", meta = (AutoCreateRefTerm = "OnComplete"))
