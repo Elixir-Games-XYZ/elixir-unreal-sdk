@@ -267,6 +267,29 @@ void UElixirSubsystem::GetCollections(const FCollectionsCallback& OnComplete)
 	            });
 }
 
+void UElixirSubsystem::GetTournaments(EElixirTournamentFilterType Filter, const FTournamentsCallback& OnComplete)
+{
+	const FString FilterStr = Filter == EElixirTournamentFilterType::All ? TEXT("ALL") : TEXT("ACTIVE");
+	const FString RequestUrl = FString::Printf(TEXT("/sdk/v2/tournaments?filter=%s"), *FilterStr);
+
+	MakeRequest(RequestUrl, nullptr, [this, OnComplete](TSharedPtr<FJsonObject> JsonObject)
+	            {
+		            TArray<FElixirTournament> Tournaments;
+#if ENGINE_MAJOR_VERSION >= 5
+		            FJsonObjectConverter::JsonArrayToUStruct(
+			            ConvertSnakeCaseToCamelCase(JsonObject)->GetArrayField("data"), &Tournaments, 0, 0, false);
+#else
+			FJsonObjectConverter::JsonArrayToUStruct(
+				ConvertSnakeCaseToCamelCase(JsonObject)->GetArrayField("data"), &Tournaments, 0, 0);
+#endif
+		            OnComplete.ExecuteIfBound(true, Tournaments);
+	            },
+	            [OnComplete](int ErrorCode, FString Message)
+	            {
+		            const TArray<FElixirTournament> Tournaments;
+		            OnComplete.ExecuteIfBound(false, Tournaments);
+	            });
+}
 
 void UElixirSubsystem::CloseElixir(const FCallback& OnComplete)
 {
