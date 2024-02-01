@@ -37,7 +37,12 @@
 				"iOS",
 				"Android"
 			]
-		} 
+		},
+		{
+		  "Name": "ElixirEditor",
+		  "Type": "Editor",
+		  "LoadingPhase": "PostEngineInit"
+		}
 	],
 	"PostBuildSteps": {}
 }

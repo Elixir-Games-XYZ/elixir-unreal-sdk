@@ -2,6 +2,8 @@
 
 #include "Modules/ModuleManager.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogElixir, Log, All);
+
 class FElixirModule : public IModuleInterface
 {
 public:
