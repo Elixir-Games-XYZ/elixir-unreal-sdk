@@ -71,7 +71,7 @@ private:
 	TSharedPtr<SHorizontalBox> SuccessHorizontalBox;
 	TSharedPtr<SCheckBox> SuccessCheckBox;
 	TSharedPtr<SHorizontalBox> SkuHorizontalBox;
-	TSharedPtr<SEditableText> SkuEditableText;
+	TSharedPtr<SEditableTextBox> SkuEditableTextBox;
 
 	TSharedPtr<SHorizontalBox> IsOpenHorizontalBox;
 	TSharedPtr<SCheckBox> IsOpenCheckBox;	

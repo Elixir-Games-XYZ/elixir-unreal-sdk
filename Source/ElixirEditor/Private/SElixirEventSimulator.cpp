@@ -148,8 +148,8 @@ void SElixirEventSimulator::Construct(const FArguments& InArgs)
 	+ SHorizontalBox::Slot()
 	.FillWidth(1.0)
 	[
-		SAssignNew(SkuEditableText, SEditableText)
-	];	
+		SAssignNew(SkuEditableTextBox, SEditableTextBox)
+	];
 	
 	IsOpenHorizontalBox = SNew(SHorizontalBox)
 	.Visibility(EVisibility::Collapsed)
@@ -184,7 +184,7 @@ void SElixirEventSimulator::Construct(const FArguments& InArgs)
 		   ]
 		]
 		+ SHorizontalBox::Slot()
-		.Padding(10.0f, 3.0f, 0.0f, 3.0f)
+		.Padding(6.0f, 3.0f, 0.0f, 3.0f)
 		.AutoWidth()
 		[
 			SNew(SButton)
@@ -200,6 +200,7 @@ void SElixirEventSimulator::Construct(const FArguments& InArgs)
 	]
 	+ SVerticalBox::Slot()
 	.FillHeight(1.0f)
+	.Padding(0.0f, 3.0f, 0.0f, 3.0f)
 	[
 		SNew(SBorder)
 		.Padding(0)
@@ -210,6 +211,7 @@ void SElixirEventSimulator::Construct(const FArguments& InArgs)
 	]
 	+ SVerticalBox::Slot()
 	.AutoHeight()
+	.Padding(0.0f, 3.0f, 0.0f, 3.0f)
 	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
@@ -225,22 +227,25 @@ void SElixirEventSimulator::Construct(const FArguments& InArgs)
 	]
 	+ SVerticalBox::Slot()
 	.AutoHeight()
+	.Padding(0.0f, 3.0f, 0.0f, 3.0f)
 	[
 		SuccessHorizontalBox.ToSharedRef()
 	]
 	+ SVerticalBox::Slot()
 	.AutoHeight()
+	.Padding(0.0f, 3.0f, 0.0f, 3.0f)
 	[
 		SkuHorizontalBox.ToSharedRef()
 	]	
 	+ SVerticalBox::Slot()
 	.AutoHeight()
+	.Padding(0.0f, 3.0f, 0.0f, 3.0f)
 	[
 		IsOpenHorizontalBox.ToSharedRef()
 	]
 	+ SVerticalBox::Slot()
 	.AutoHeight()
-	.Padding(0,10.0f,0,0)
+	.Padding(0, 10.0f, 0, 3.0f)
 	[
 		SNew(SButton)
 		.HAlign(HAlign_Center)
@@ -327,7 +332,7 @@ FReply SElixirEventSimulator::OnSend()
 	
 	if (SelectedEventType == "CheckoutResult")
 	{
-		SendCheckoutResult(SuccessCheckBox->IsChecked(), SkuEditableText->GetText().ToString());
+		SendCheckoutResult(SuccessCheckBox->IsChecked(), SkuEditableTextBox->GetText().ToString());
 	}
 	else if (SelectedEventType == "OpenStateChange")
 	{
