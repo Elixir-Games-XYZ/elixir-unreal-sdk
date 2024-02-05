@@ -1,3 +1,5 @@
+![sdkhero](https://github.com/Elixir-Games-XYZ/elixir-unreal-sdk/assets/1970424/fbb21035-cad1-402d-bb19-224b161dc377)
+
 # Welcome to Elixir Unreal SDK
 
 ## 1. Prepare Elixir
