@@ -62,9 +62,22 @@ extern "C" struct RAVEN_EXPORT MSetVisibilityInterop
     bool newVisibility;
 };
 
+// The following monstrosity disables the pesky 'extern-c-compat' warning that Unreal elevates to error
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wextern-c-compat"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wextern-c-compat"
+#endif
 extern "C" struct RAVEN_EXPORT MEmptyInterop
 {
 };
+#ifdef __clang__
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 extern "C" enum RAVEN_EXPORT MessageType : int32_t
 {

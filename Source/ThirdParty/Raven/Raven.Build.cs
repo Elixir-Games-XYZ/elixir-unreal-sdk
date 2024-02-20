@@ -12,16 +12,18 @@ public class Raven : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			// TODO: platform support
+			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib/Linux/libraven_static.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib/Linux/libplibsysstatic.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			// TODO: platform support
+			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib/Mac/libraven_static.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib/Mac/libplibsysstatic.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib/raven_static.lib"));
-			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib/plibsysstatic.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib/Win64/raven_static.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib/Win64/plibsysstatic.lib"));
 		}
 	}
 }

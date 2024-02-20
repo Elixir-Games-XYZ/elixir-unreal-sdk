@@ -492,8 +492,7 @@ bool UElixirSubsystem::Checkout(const FString& Sku)
 		return false;
 	}
 
-	const char* SkuChar = TCHAR_TO_ANSI(*Sku);
-	const size_t BytesWritten = WriteToEventBufferCheckout(EventBufferOverlayUi, SkuChar);
+	const size_t BytesWritten = WriteToEventBufferCheckout(EventBufferOverlayUi, TCHAR_TO_ANSI(*Sku));
 	if (BytesWritten == 0)
 	{
 		UE_LOG(LogElixir, Error, TEXT("Checkout failed: 0 bytes written"));
